@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_analytic_decision_matrix_wizard_form" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.wizard.form</field>
+        <field name="model">analytic.decision.matrix.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Matriz Decision Analitica">
+                <header>
+                    <button name="action_compute" type="object" string="Generar Matriz" class="btn-primary" />
+                    <button name="action_print_pdf" type="object" string="Imprimir PDF" class="btn-secondary" />
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="company_id" />
+                            <field name="date_from" />
+                            <field name="date_to" />
+                            <field name="reasignacion_journal_code" />
+                        </group>
+                    </group>
+                    <separator string="Proyectos (Cuentas Analiticas)" />
+                    <field name="line_ids" nolabel="1" readonly="1">
+                        <tree create="0" delete="0" edit="0">
+                            <field name="analytic_account_id" />
+                            <field name="ingreso" />
+                            <field name="cxc" />
+                            <field name="reasignacion_in" />
+                            <field name="egresos" />
+                            <field name="cxp" />
+                            <field name="reasignacion_out" />
+                            <field name="saldo_devengado" />
+                            <field name="saldo_efectivo" />
+                        </tree>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_analytic_decision_matrix_wizard_form_filters_right" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.wizard.form.filters.right</field>
+        <field name="model">analytic.decision.matrix.wizard</field>
+        <field name="inherit_id" ref="analytic_decision_matrix_report.view_analytic_decision_matrix_wizard_form" />
+        <field name="priority" eval="100" />
+        <field name="arch" type="xml">
+            <xpath expr="//form/sheet/group/group[1]" position="after">
+                <group>
+                    <field name="analytic_plan_id" />
+                    <field name="analytic_account_ids" widget="many2many_tags" options="{'no_create': True}" />
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_analytic_decision_matrix_wizard" model="ir.actions.act_window">
+        <field name="name">Matriz Decision Analitica</field>
+        <field name="res_model">analytic.decision.matrix.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+    </record>
+
+    <menuitem
+        id="menu_analytic_decision_matrix_wizard"
+        name="Matriz Decision Analitica"
+        parent="account.menu_finance_reports"
+        action="action_analytic_decision_matrix_wizard"
+        sequence="95"
+    />
+
+</odoo>

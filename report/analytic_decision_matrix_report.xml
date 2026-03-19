@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="action_report_analytic_decision_matrix" model="ir.actions.report">
+        <field name="name">Matriz Decision Analitica</field>
+        <field name="model">analytic.decision.matrix.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">analytic_decision_matrix_report.report_analytic_decision_matrix</field>
+        <field name="report_file">analytic_decision_matrix_report.report_analytic_decision_matrix</field>
+        <field name="print_report_name">'Matriz Decision Analitica - %s' % (object.company_id.name or '')</field>
+        <field name="binding_model_id" ref="model_analytic_decision_matrix_wizard" />
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_analytic_decision_matrix">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Matriz Decision Analitica</h2>
+                        <p>
+                            <strong>Empresa:</strong>
+                            <span t-field="o.company_id" />
+                            <br />
+                            <strong>Fecha desde:</strong>
+                            <span t-esc="o.date_from or 'Sin limite'" />
+                            <br />
+                            <strong>Fecha hasta:</strong>
+                            <span t-esc="o.date_to or 'Hoy'" />
+                            <br />
+                            <strong>Plan analitico:</strong>
+                            <span t-esc="o.analytic_plan_id.name or 'Todos'" />
+                            <br />
+                            <strong>Cuentas analiticas:</strong>
+                            <span t-esc="', '.join(o.analytic_account_ids.mapped('name')) or 'Todas'" />
+                        </p>
+                        <table class="table table-sm o_main_table">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th class="text-end">Ingreso</th>
+                                    <th class="text-end">Ctas x Cob</th>
+                                    <th class="text-end">Reasignacion (+)</th>
+                                    <th class="text-end">Egresos</th>
+                                    <th class="text-end">Ctas x Pag</th>
+                                    <th class="text-end">Reasignacion (-)</th>
+                                    <th class="text-end">Saldo Devengado</th>
+                                    <th class="text-end">Saldo Efectivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="o.line_ids" t-as="line">
+                                    <td>
+                                        <span t-field="line.analytic_account_id" />
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-field="line.ingreso" />
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-field="line.cxc" />
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-field="line.reasignacion_in" />
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-field="line.egresos" />
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-field="line.cxp" />
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-field="line.reasignacion_out" />
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-field="line.saldo_devengado" />
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-field="line.saldo_efectivo" />
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th>Total</th>
+                                    <th class="text-end">
+                                        <span t-out="sum(o.line_ids.mapped('ingreso'))" t-options="{'widget': 'monetary', 'display_currency': o.company_id.currency_id}" />
+                                    </th>
+                                    <th class="text-end">
+                                        <span t-out="sum(o.line_ids.mapped('cxc'))" t-options="{'widget': 'monetary', 'display_currency': o.company_id.currency_id}" />
+                                    </th>
+                                    <th class="text-end">
+                                        <span t-out="sum(o.line_ids.mapped('reasignacion_in'))" t-options="{'widget': 'monetary', 'display_currency': o.company_id.currency_id}" />
+                                    </th>
+                                    <th class="text-end">
+                                        <span t-out="sum(o.line_ids.mapped('egresos'))" t-options="{'widget': 'monetary', 'display_currency': o.company_id.currency_id}" />
+                                    </th>
+                                    <th class="text-end">
+                                        <span t-out="sum(o.line_ids.mapped('cxp'))" t-options="{'widget': 'monetary', 'display_currency': o.company_id.currency_id}" />
+                                    </th>
+                                    <th class="text-end">
+                                        <span t-out="sum(o.line_ids.mapped('reasignacion_out'))" t-options="{'widget': 'monetary', 'display_currency': o.company_id.currency_id}" />
+                                    </th>
+                                    <th class="text-end">
+                                        <span t-out="sum(o.line_ids.mapped('saldo_devengado'))" t-options="{'widget': 'monetary', 'display_currency': o.company_id.currency_id}" />
+                                    </th>
+                                    <th class="text-end">
+                                        <span t-out="sum(o.line_ids.mapped('saldo_efectivo'))" t-options="{'widget': 'monetary', 'display_currency': o.company_id.currency_id}" />
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>
