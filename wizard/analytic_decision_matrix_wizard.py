@@ -4,9 +4,14 @@ from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 
-class AnalyticDecisionMatrixWizard(models.TransientModel):
+class AnalyticDecisionMatrixWizard(models.Model):
     _name = "analytic.decision.matrix.wizard"
     _description = "Matriz de Decision Analitica"
+    _rec_name = "name"
+    _order = "create_date desc, id desc"
+
+    name = fields.Char(required=True, default=lambda self: _("Nuevo Reporte"))
+    last_compute_at = fields.Datetime(string="Ultimo Calculo", readonly=True)
 
     company_id = fields.Many2one(
         "res.company",
@@ -31,6 +36,16 @@ class AnalyticDecisionMatrixWizard(models.TransientModel):
         string="Resultados",
         readonly=True,
     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get("name") or vals.get("name") == _("Nuevo Reporte"):
+                vals["name"] = (
+                    self.env["ir.sequence"].next_by_code("analytic.decision.matrix.wizard")
+                    or _("Reporte Matriz Analitica")
+                )
+        return super().create(vals_list)
 
     def action_compute(self):
         self.ensure_one()
@@ -89,8 +104,10 @@ class AnalyticDecisionMatrixWizard(models.TransientModel):
                 )
             )
 
+        write_vals = {"last_compute_at": fields.Datetime.now()}
         if new_lines:
-            self.write({"line_ids": new_lines})
+            write_vals["line_ids"] = new_lines
+        self.write(write_vals)
 
         return {
             "type": "ir.actions.act_window",
@@ -286,7 +303,7 @@ class AnalyticDecisionMatrixWizard(models.TransientModel):
         return weights
 
 
-class AnalyticDecisionMatrixWizardLine(models.TransientModel):
+class AnalyticDecisionMatrixWizardLine(models.Model):
     _name = "analytic.decision.matrix.wizard.line"
     _description = "Linea Matriz de Decision Analitica"
     _order = "analytic_account_id"

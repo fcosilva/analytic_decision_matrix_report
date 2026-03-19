@@ -3,6 +3,7 @@
 Reporte operativo por proyectos (cuentas analiticas), independiente de MIS Builder.
 
 Incluye soporte para compensacion interproyectos (reasignaciones) usando el diario contable `REASIG-ANA`.
+Los reportes se guardan como registros reutilizables (versionables) para recalcular, imprimir y eliminar cuando ya no se necesiten.
 
 ## Alcance del reporte
 
@@ -34,15 +35,17 @@ Nota:
 
 ## Uso rapido
 
-1. Definir filtros:
+1. Clic en `Nuevo` para crear una version del reporte.
+2. Definir filtros:
 - `Compania`
 - `Fecha Desde` (opcional)
 - `Fecha Hasta` (opcional, por defecto hoy)
 - `Plan Analitico` (opcional)
 - `Cuentas Analiticas` (opcional, una o varias)
 - `Codigo diario reasignacion` (por defecto `REASIG-ANA`)
-2. Clic en `Generar Matriz`.
-3. Opcional: clic en `Imprimir PDF`.
+3. Clic en `Generar Matriz`.
+4. Opcional: clic en `Imprimir PDF`.
+5. Puedes volver a abrir el mismo registro luego para consultar o recalcular.
 
 Comportamiento de fechas:
 - Si `Fecha Desde` esta vacia, toma toda la historia disponible hasta `Fecha Hasta`.

@@ -12,10 +12,12 @@
                 <sheet>
                     <group>
                         <group>
+                            <field name="name" />
                             <field name="company_id" />
                             <field name="date_from" />
                             <field name="date_to" />
                             <field name="reasignacion_journal_code" />
+                            <field name="last_compute_at" readonly="1" />
                         </group>
                     </group>
                     <separator string="Proyectos (Cuentas Analiticas)" />
@@ -37,6 +39,23 @@
         </field>
     </record>
 
+    <record id="view_analytic_decision_matrix_wizard_tree" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.wizard.tree</field>
+        <field name="model">analytic.decision.matrix.wizard</field>
+        <field name="arch" type="xml">
+            <tree string="Matrices de Decision Analitica">
+                <field name="name" />
+                <field name="company_id" />
+                <field name="date_from" />
+                <field name="date_to" />
+                <field name="analytic_plan_id" />
+                <field name="reasignacion_journal_code" />
+                <field name="last_compute_at" />
+                <field name="create_date" string="Creado" />
+            </tree>
+        </field>
+    </record>
+
     <record id="view_analytic_decision_matrix_wizard_form_filters_right" model="ir.ui.view">
         <field name="name">analytic.decision.matrix.wizard.form.filters.right</field>
         <field name="model">analytic.decision.matrix.wizard</field>
@@ -55,7 +74,7 @@
     <record id="action_analytic_decision_matrix_wizard" model="ir.actions.act_window">
         <field name="name">Matriz Decision Analitica</field>
         <field name="res_model">analytic.decision.matrix.wizard</field>
-        <field name="view_mode">form</field>
+        <field name="view_mode">tree,form</field>
         <field name="target">current</field>
     </record>
 
