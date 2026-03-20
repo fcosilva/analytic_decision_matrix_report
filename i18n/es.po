@@ -1,0 +1,44 @@
+# Translation for analytic_decision_matrix_report.
+msgid ""
+msgstr ""
+"Project-Id-Version: analytic_decision_matrix_report 17.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-20 00:00+0000\n"
+"PO-Revision-Date: 2026-03-20 00:00+0000\n"
+"Last-Translator: OpenLab\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: analytic_decision_matrix_report
+#: model:ir.model.fields,field_description:analytic_decision_matrix_report.field_analytic_decision_matrix_wizard__include_reversed
+msgid "Incluir reversados"
+msgstr "Incluir reversados"
+
+#. module: analytic_decision_matrix_report
+#: model:ir.model.fields,field_description:analytic_decision_matrix_report.field_analytic_decision_matrix_wizard__drilldown_document_view
+msgid "Drill-down por documentos"
+msgstr "Drill-down por documentos"
+
+#. module: analytic_decision_matrix_report
+#: model:ir.model.fields,help:analytic_decision_matrix_report.field_analytic_decision_matrix_wizard__include_reversed
+msgid "Si se activa, incluye tanto el documento original reversado como su documento de reversa."
+msgstr "Si se activa, incluye tanto el documento original reversado como su documento de reversa."
+
+#. module: analytic_decision_matrix_report
+#: model:ir.model.fields,help:analytic_decision_matrix_report.field_analytic_decision_matrix_wizard__drilldown_document_view
+msgid "Si se activa, el detalle de Ingreso/Egreso/Reasignacion se abre por documentos (account.move)."
+msgstr "Si se activa, el detalle de Ingreso/Egreso/Reasignacion se abre por documentos (account.move)."
+
+#. module: analytic_decision_matrix_report
+#: model_terms:ir.ui.view,arch_db:analytic_decision_matrix_report.report_analytic_decision_matrix
+msgid "Incluir reversados:"
+msgstr "Incluir reversados:"
+
+#. module: analytic_decision_matrix_report
+#: model_terms:ir.ui.view,arch_db:analytic_decision_matrix_report.report_analytic_decision_matrix
+msgid "Drill-down por documentos:"
+msgstr "Drill-down por documentos:"

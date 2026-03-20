@@ -42,6 +42,8 @@ Nota:
 - `Fecha Hasta` (opcional, por defecto hoy)
 - `Plan Analitico` (opcional)
 - `Cuentas Analiticas` (opcional, una o varias)
+- `Incluir reversados` (opcional, por defecto desactivado)
+- `Drill-down por documentos` (opcional, por defecto activado)
 - `Codigo diario reasignacion` (por defecto `REASIG-ANA`)
 3. Clic en `Generar Matriz`.
 4. Opcional: clic en `Imprimir PDF`.
@@ -53,6 +55,17 @@ Nota:
 Comportamiento de fechas:
 - Si `Fecha Desde` esta vacia, toma toda la historia disponible hasta `Fecha Hasta`.
 - Si `Fecha Hasta` esta vacia, se usa la fecha actual.
+
+Comportamiento de reversas:
+- Por defecto, el reporte excluye documentos reversados y documentos de reversa para evitar duplicidad/confusion en gestion.
+- Si se activa `Incluir reversados`, se incluyen ambos para fines de auditoria y trazabilidad.
+
+Comportamiento del drill-down:
+- Por defecto abre por documentos (`account.move`) en Ingreso/Egreso/Reasignacion.
+- Si se desactiva `Drill-down por documentos`, abre detalle contable (`account.move.line`).
+- En modo documentos:
+- Si todo el conjunto corresponde a reportes de gastos, abre `hr.expense.sheet`.
+- Si hay mezcla (reportes de gastos y otros documentos, como facturas), abre `account.move`.
 
 ## Criterio de calculo
 

@@ -16,8 +16,7 @@
                             <field name="company_id" />
                             <field name="date_from" />
                             <field name="date_to" />
-                            <field name="reasignacion_journal_code" />
-                            <field name="last_compute_at" readonly="1" />
+                            <field name="drilldown_document_view" />
                         </group>
                     </group>
                     <separator string="Proyectos (Cuentas Analiticas)" />
@@ -99,6 +98,8 @@
                 <field name="company_id" />
                 <field name="date_from" />
                 <field name="date_to" />
+                <field name="include_reversed" />
+                <field name="drilldown_document_view" />
                 <field name="analytic_plan_id" />
                 <field name="reasignacion_journal_code" />
                 <field name="last_compute_at" />
@@ -117,6 +118,9 @@
                 <group>
                     <field name="analytic_plan_id" />
                     <field name="analytic_account_ids" widget="many2many_tags" options="{'no_create': True}" />
+                    <field name="include_reversed" />
+                    <field name="reasignacion_journal_code" />
+                    <field name="last_compute_at" readonly="1" />
                 </group>
             </xpath>
         </field>

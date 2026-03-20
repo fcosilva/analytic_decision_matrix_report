@@ -20,6 +20,16 @@ class AnalyticDecisionMatrixWizard(models.Model):
     )
     date_from = fields.Date()
     date_to = fields.Date(default=fields.Date.context_today)
+    include_reversed = fields.Boolean(
+        string="Incluir reversados",
+        default=False,
+        help="Si se activa, incluye tanto el documento original reversado como su documento de reversa.",
+    )
+    drilldown_document_view = fields.Boolean(
+        string="Drill-down por documentos",
+        default=True,
+        help="Si se activa, el detalle de Ingreso/Egreso/Reasignacion se abre por documentos (account.move).",
+    )
     analytic_plan_id = fields.Many2one("account.analytic.plan", string="Plan Analitico")
     analytic_account_ids = fields.Many2many(
         "account.analytic.account",
@@ -137,13 +147,7 @@ class AnalyticDecisionMatrixWizard(models.Model):
             write_vals["line_ids"] = new_lines
         self.write(write_vals)
 
-        return {
-            "type": "ir.actions.act_window",
-            "res_model": self._name,
-            "view_mode": "form",
-            "res_id": self.id,
-            "target": "current",
-        }
+        return {"type": "ir.actions.client", "tag": "reload"}
 
     def action_print_pdf(self):
         self.ensure_one()
@@ -172,6 +176,41 @@ class AnalyticDecisionMatrixWizard(models.Model):
             domain.append(("id", "in", self.analytic_account_ids.ids))
         return set(self.env["account.analytic.account"].search(domain).ids)
 
+    def _sql_reversed_moves_clause(self, alias="am"):
+        self.ensure_one()
+        if self.include_reversed:
+            return ""
+        return f"""
+            AND {alias}.reversed_entry_id IS NULL
+            AND NOT EXISTS (
+                SELECT 1
+                FROM account_move am_rev
+                WHERE am_rev.reversed_entry_id = {alias}.id
+                  AND am_rev.state = 'posted'
+            )
+        """
+
+    def _invoice_move_search_domain(self, date_to):
+        self.ensure_one()
+        domain = [
+            ("company_id", "=", self.company_id.id),
+            ("state", "=", "posted"),
+            ("move_type", "in", ("out_invoice", "out_refund", "in_invoice", "in_refund")),
+            "|",
+            ("invoice_date", "<=", date_to),
+            "&",
+            ("invoice_date", "=", False),
+            ("date", "<=", date_to),
+        ]
+        if not self.include_reversed:
+            domain.extend(
+                [
+                    ("reversed_entry_id", "=", False),
+                    ("reversal_move_id", "=", False),
+                ]
+            )
+        return domain
+
     def _load_move_line_amounts(self, amounts_by_project, selected_analytic_ids):
         self.ensure_one()
         date_to = self._effective_date_to()
@@ -192,6 +231,10 @@ class AnalyticDecisionMatrixWizard(models.Model):
                 SUM(
                     CASE
                         WHEN aa.account_type IN ('income', 'income_other')
+                             AND (
+                                 am.move_type NOT IN ('out_invoice', 'out_refund')
+                                 OR am.payment_state IN ('paid', 'in_payment')
+                             )
                         THEN (-aml.balance) * (ad.value::numeric / 100.0)
                         ELSE 0
                     END
@@ -199,6 +242,10 @@ class AnalyticDecisionMatrixWizard(models.Model):
                 SUM(
                     CASE
                         WHEN aa.account_type IN ('expense', 'expense_direct_cost', 'expense_depreciation')
+                             AND (
+                                 am.move_type NOT IN ('in_invoice', 'in_refund')
+                                 OR am.payment_state IN ('paid', 'in_payment')
+                             )
                         THEN aml.balance * (ad.value::numeric / 100.0)
                         ELSE 0
                     END
@@ -223,6 +270,7 @@ class AnalyticDecisionMatrixWizard(models.Model):
             LEFT JOIN account_journal aj ON aj.id = aml.journal_id
             JOIN LATERAL jsonb_each_text(aml.analytic_distribution) ad ON TRUE
             WHERE am.state = 'posted'
+              {self._sql_reversed_moves_clause('am')}
               AND aml.company_id = %s
               {where_date_from}
               AND aml.date <= %s
@@ -245,18 +293,7 @@ class AnalyticDecisionMatrixWizard(models.Model):
     def _load_open_residuals(self, amounts_by_project, selected_analytic_ids):
         self.ensure_one()
         date_to = self._effective_date_to()
-        moves = self.env["account.move"].search(
-            [
-                ("company_id", "=", self.company_id.id),
-                ("state", "=", "posted"),
-                ("move_type", "in", ("out_invoice", "out_refund", "in_invoice", "in_refund")),
-                "|",
-                ("invoice_date", "<=", date_to),
-                "&",
-                ("invoice_date", "=", False),
-                ("date", "<=", date_to),
-            ]
-        )
+        moves = self.env["account.move"].search(self._invoice_move_search_domain(date_to))
 
         for move in moves:
             # Always compute weights against the full analytic distribution of the move.
@@ -399,12 +436,49 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
             JOIN account_account aa ON aa.id = aml.account_id
             LEFT JOIN account_journal aj ON aj.id = aml.journal_id
             WHERE am.state = 'posted'
+              {wizard._sql_reversed_moves_clause('am')}
               AND aml.company_id = %s
               AND COALESCE(aml.analytic_distribution, '{{}}'::jsonb) ? %s
               {where_date_from}
               {extra_where}
               AND aml.date <= %s
             ORDER BY aml.date DESC, aml.id DESC
+            """,
+            tuple(params),
+        )
+        return [row[0] for row in self.env.cr.fetchall()]
+
+    def _get_move_ids(self, extra_where="", extra_params=None):
+        self.ensure_one()
+        if self.is_total or not self.analytic_account_id:
+            return []
+        extra_params = extra_params or []
+        wizard = self.wizard_id
+        date_to = wizard._effective_date_to()
+        where_date_from = ""
+        params = [wizard.company_id.id, str(self.analytic_account_id.id)]
+
+        if wizard.date_from:
+            where_date_from = "AND aml.date >= %s"
+            params.append(wizard.date_from)
+
+        params.extend(extra_params)
+        params.append(date_to)
+        self.env.cr.execute(
+            f"""
+            SELECT DISTINCT am.id
+            FROM account_move_line aml
+            JOIN account_move am ON am.id = aml.move_id
+            JOIN account_account aa ON aa.id = aml.account_id
+            LEFT JOIN account_journal aj ON aj.id = aml.journal_id
+            WHERE am.state = 'posted'
+              {wizard._sql_reversed_moves_clause('am')}
+              AND aml.company_id = %s
+              AND COALESCE(aml.analytic_distribution, '{{}}'::jsonb) ? %s
+              {where_date_from}
+              {extra_where}
+              AND aml.date <= %s
+            ORDER BY am.id DESC
             """,
             tuple(params),
         )
@@ -432,18 +506,7 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
         wizard = self.wizard_id
         date_to = wizard._effective_date_to()
         move_ids = []
-        moves = self.env["account.move"].search(
-            [
-                ("company_id", "=", wizard.company_id.id),
-                ("state", "=", "posted"),
-                ("move_type", "in", ("out_invoice", "out_refund", "in_invoice", "in_refund")),
-                "|",
-                ("invoice_date", "<=", date_to),
-                "&",
-                ("invoice_date", "=", False),
-                ("date", "<=", date_to),
-            ]
-        )
+        moves = self.env["account.move"].search(wizard._invoice_move_search_domain(date_to))
         for move in moves:
             weights = wizard._weights_by_analytic(move, None)
             if not weights.get(self.analytic_account_id.id):
@@ -465,18 +528,7 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
         vals_list = []
         total_residual_amount = 0.0
         total_analytic_amount = 0.0
-        moves = self.env["account.move"].search(
-            [
-                ("company_id", "=", wizard.company_id.id),
-                ("state", "=", "posted"),
-                ("move_type", "in", ("out_invoice", "out_refund", "in_invoice", "in_refund")),
-                "|",
-                ("invoice_date", "<=", date_to),
-                "&",
-                ("invoice_date", "=", False),
-                ("date", "<=", date_to),
-            ]
-        )
+        moves = self.env["account.move"].search(wizard._invoice_move_search_domain(date_to))
         for move in moves:
             weights = wizard._weights_by_analytic(move, None)
             analytic_weight = weights.get(self.analytic_account_id.id)
@@ -542,8 +594,37 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
             "target": "current",
         }
 
+    def _open_document_drilldown_action(self, action_name, move_ids):
+        """In document mode, prefer expense sheets when moves come from hr.expense.sheet."""
+        self.ensure_one()
+        move_ids = [int(mid) for mid in (move_ids or []) if mid]
+        if not move_ids:
+            return self._open_moves_action(action_name, move_ids)
+
+        sheets = self.env["hr.expense.sheet"].search([("account_move_ids", "in", move_ids)])
+        if not sheets:
+            return self._open_moves_action(action_name, move_ids)
+
+        linked_move_ids = set(sheets.mapped("account_move_ids").ids)
+        if set(move_ids).issubset(linked_move_ids):
+            return {
+                "type": "ir.actions.act_window",
+                "name": action_name,
+                "res_model": "hr.expense.sheet",
+                "view_mode": "list,form",
+                "domain": [("id", "in", sheets.ids)],
+                "target": "current",
+            }
+        return self._open_moves_action(action_name, move_ids)
+
     def action_open_documents(self):
         self.ensure_one()
+        if self.wizard_id.drilldown_document_view:
+            move_ids = self._get_move_ids()
+            return self._open_document_drilldown_action(
+                _("Detalle documentos - %s") % (self.analytic_account_id.display_name,),
+                move_ids,
+            )
         move_line_ids = self._get_move_line_ids()
         return self._open_move_lines_action(
             _("Detalle documentos - %s") % (self.analytic_account_id.display_name,),
@@ -552,8 +633,28 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
 
     def action_open_ingreso_documents(self):
         self.ensure_one()
+        if self.wizard_id.drilldown_document_view:
+            move_ids = self._get_move_ids(
+                extra_where="""
+                    AND aa.account_type IN ('income', 'income_other')
+                    AND (
+                        am.move_type NOT IN ('out_invoice', 'out_refund')
+                        OR am.payment_state IN ('paid', 'in_payment')
+                    )
+                """
+            )
+            return self._open_document_drilldown_action(
+                _("Detalle ingreso - %s") % (self.analytic_account_id.display_name,),
+                move_ids,
+            )
         move_line_ids = self._get_move_line_ids(
-            extra_where="AND aa.account_type IN ('income', 'income_other')"
+            extra_where="""
+                AND aa.account_type IN ('income', 'income_other')
+                AND (
+                    am.move_type NOT IN ('out_invoice', 'out_refund')
+                    OR am.payment_state IN ('paid', 'in_payment')
+                )
+            """
         )
         return self._open_move_lines_action(
             _("Detalle ingreso - %s") % (self.analytic_account_id.display_name,),
@@ -562,8 +663,28 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
 
     def action_open_egresos_documents(self):
         self.ensure_one()
+        if self.wizard_id.drilldown_document_view:
+            move_ids = self._get_move_ids(
+                extra_where="""
+                    AND aa.account_type IN ('expense', 'expense_direct_cost', 'expense_depreciation')
+                    AND (
+                        am.move_type NOT IN ('in_invoice', 'in_refund')
+                        OR am.payment_state IN ('paid', 'in_payment')
+                    )
+                """
+            )
+            return self._open_document_drilldown_action(
+                _("Detalle egresos - %s") % (self.analytic_account_id.display_name,),
+                move_ids,
+            )
         move_line_ids = self._get_move_line_ids(
-            extra_where="AND aa.account_type IN ('expense', 'expense_direct_cost', 'expense_depreciation')"
+            extra_where="""
+                AND aa.account_type IN ('expense', 'expense_direct_cost', 'expense_depreciation')
+                AND (
+                    am.move_type NOT IN ('in_invoice', 'in_refund')
+                    OR am.payment_state IN ('paid', 'in_payment')
+                )
+            """
         )
         return self._open_move_lines_action(
             _("Detalle egresos - %s") % (self.analytic_account_id.display_name,),
@@ -572,6 +693,15 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
 
     def action_open_reasignacion_in_documents(self):
         self.ensure_one()
+        if self.wizard_id.drilldown_document_view:
+            move_ids = self._get_move_ids(
+                extra_where="AND aj.code = %s AND aml.debit > 0",
+                extra_params=[self.wizard_id.reasignacion_journal_code],
+            )
+            return self._open_document_drilldown_action(
+                _("Detalle reasignacion (+) - %s") % (self.analytic_account_id.display_name,),
+                move_ids,
+            )
         move_line_ids = self._get_move_line_ids(
             extra_where="AND aj.code = %s AND aml.debit > 0",
             extra_params=[self.wizard_id.reasignacion_journal_code],
@@ -583,6 +713,15 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
 
     def action_open_reasignacion_out_documents(self):
         self.ensure_one()
+        if self.wizard_id.drilldown_document_view:
+            move_ids = self._get_move_ids(
+                extra_where="AND aj.code = %s AND aml.credit > 0",
+                extra_params=[self.wizard_id.reasignacion_journal_code],
+            )
+            return self._open_document_drilldown_action(
+                _("Detalle reasignacion (-) - %s") % (self.analytic_account_id.display_name,),
+                move_ids,
+            )
         move_line_ids = self._get_move_line_ids(
             extra_where="AND aj.code = %s AND aml.credit > 0",
             extra_params=[self.wizard_id.reasignacion_journal_code],
