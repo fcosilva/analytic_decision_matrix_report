@@ -1,4 +1,4 @@
-# Analytic Decision Matrix Report
+# Reporte Matriz de Decision Analitica
 
 Reporte operativo por proyectos (cuentas analiticas), independiente de MIS Builder.
 
@@ -43,7 +43,7 @@ Nota:
 - `Plan Analitico` (opcional)
 - `Cuentas Analiticas` (opcional, una o varias)
 - `Incluir reversados` (opcional, por defecto desactivado)
-- `Drill-down por documentos` (opcional, por defecto activado)
+- `Desglose por documentos` (opcional, por defecto activado)
 - `Codigo diario reasignacion` (por defecto `REASIG-ANA`)
 3. Clic en `Generar Matriz`.
 4. Opcional: clic en `Imprimir PDF`.
@@ -62,10 +62,13 @@ Comportamiento de reversas:
 
 Comportamiento del drill-down:
 - Por defecto abre por documentos (`account.move`) en Ingreso/Egreso/Reasignacion.
-- Si se desactiva `Drill-down por documentos`, abre detalle contable (`account.move.line`).
+- Si se desactiva `Desglose por documentos`, abre detalle contable (`account.move.line`).
 - En modo documentos:
 - Si todo el conjunto corresponde a reportes de gastos, abre `hr.expense.sheet`.
 - Si hay mezcla (reportes de gastos y otros documentos, como facturas), abre `account.move`.
+- En drill-down de `Ctas x Cob`/`Ctas x Pag` se muestran:
+- `Documento` (clickeable), `Contacto`, `Fecha factura`, `Fecha vencimiento`, `Dias vencido`, `Residual Documento`, `% Participacion Analitica` y `Residual Proyecto`.
+- La fila `TOTAL GENERAL` del drill-down oculta columnas de detalle y presenta solo el resumen monetario total.
 
 ## Criterio de calculo
 

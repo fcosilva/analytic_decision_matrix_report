@@ -26,7 +26,7 @@ class AnalyticDecisionMatrixWizard(models.Model):
         help="Si se activa, incluye tanto el documento original reversado como su documento de reversa.",
     )
     drilldown_document_view = fields.Boolean(
-        string="Drill-down por documentos",
+        string="Desglose por documentos",
         default=True,
         help="Si se activa, el detalle de Ingreso/Egreso/Reasignacion se abre por documentos (account.move).",
     )
@@ -486,18 +486,31 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
 
     def _open_move_lines_action(self, action_name, move_line_ids):
         self.ensure_one()
-        return {
-            "type": "ir.actions.act_window",
-            "name": action_name,
-            "res_model": "account.move.line",
-            "view_mode": "list,form",
-            "domain": [("id", "in", move_line_ids)],
-            "context": {
-                "search_default_group_by_move": 1,
-                "search_default_posted": 1,
-            },
-            "target": "current",
-        }
+        action_ref = self.env.ref("analytic_decision_matrix_report.action_analytic_decision_matrix_account_move_line")
+        menu_ref = self.env.ref("analytic_decision_matrix_report.menu_analytic_decision_matrix_wizard")
+        tree_ref = self.env.ref("analytic_decision_matrix_report.view_analytic_decision_matrix_account_move_line_tree")
+        action = self.env["ir.actions.actions"]._for_xml_id(
+            "analytic_decision_matrix_report.action_analytic_decision_matrix_account_move_line"
+        )
+        action.update(
+            {
+                "id": action_ref.id,
+                "menu_id": menu_ref.id,
+                "name": action_name,
+                "domain": [("id", "in", move_line_ids)],
+                "context": {
+                    **self.env.context,
+                    "search_default_group_by_move": 1,
+                    "search_default_posted": 1,
+                    "create": False,
+                    "import_file": False,
+                    "analytic_matrix_wizard_id": self.wizard_id.id,
+                },
+                "views": [(tree_ref.id, "list"), (False, "form")],
+                "target": "current",
+            }
+        )
+        return action
 
     def _get_open_invoice_move_ids(self, target_key):
         self.ensure_one()
@@ -584,15 +597,29 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
 
     def _open_moves_action(self, action_name, move_ids):
         self.ensure_one()
-        return {
-            "type": "ir.actions.act_window",
-            "name": action_name,
-            "res_model": "account.move",
-            "view_mode": "list,form",
-            "domain": [("id", "in", move_ids)],
-            "context": {"search_default_posted": 1},
-            "target": "current",
-        }
+        action_ref = self.env.ref("analytic_decision_matrix_report.action_analytic_decision_matrix_account_move")
+        menu_ref = self.env.ref("analytic_decision_matrix_report.menu_analytic_decision_matrix_wizard")
+        tree_ref = self.env.ref("analytic_decision_matrix_report.view_analytic_decision_matrix_account_move_tree")
+        action = self.env["ir.actions.actions"]._for_xml_id(
+            "analytic_decision_matrix_report.action_analytic_decision_matrix_account_move"
+        )
+        action.update(
+            {
+                "id": action_ref.id,
+                "menu_id": menu_ref.id,
+                "name": action_name,
+                "domain": [("id", "in", move_ids)],
+                "context": {
+                    **self.env.context,
+                    "search_default_posted": 1,
+                    "analytic_matrix_wizard_id": self.wizard_id.id,
+                },
+                "views": [(tree_ref.id, "list"), (False, "form")],
+                "target": "current",
+            }
+        )
+        action["context"].update({"create": False, "import_file": False})
+        return action
 
     def _open_document_drilldown_action(self, action_name, move_ids):
         """In document mode, prefer expense sheets when moves come from hr.expense.sheet."""
@@ -613,6 +640,12 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
                 "res_model": "hr.expense.sheet",
                 "view_mode": "list,form",
                 "domain": [("id", "in", sheets.ids)],
+                "context": {
+                    **self.env.context,
+                    "create": False,
+                    "import_file": False,
+                    "analytic_matrix_wizard_id": self.wizard_id.id,
+                },
                 "target": "current",
             }
         return self._open_moves_action(action_name, move_ids)
@@ -733,31 +766,73 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
 
     def action_open_cxc_documents(self):
         self.ensure_one()
+        self.env["analytic.decision.matrix.open.move"].search(
+            [("wizard_id", "=", self.wizard_id.id), ("create_uid", "=", self.env.uid)]
+        ).unlink()
         self.open_residual_detail_ids.filtered(lambda r: r.target_key == "cxc").unlink()
         vals_list = self._prepare_open_invoice_drilldown_vals("cxc")
         detail_records = self.env["analytic.decision.matrix.open.move"].create(vals_list)
-        return {
-            "type": "ir.actions.act_window",
-            "name": _("Detalle Ctas x Cob - %s") % (self.analytic_account_id.display_name,),
-            "res_model": "analytic.decision.matrix.open.move",
-            "view_mode": "list,form",
-            "domain": [("id", "in", detail_records.ids)],
-            "target": "current",
-        }
+        action_ref = self.env.ref("analytic_decision_matrix_report.action_analytic_decision_matrix_open_move")
+        menu_ref = self.env.ref("analytic_decision_matrix_report.menu_analytic_decision_matrix_wizard")
+        tree_ref = self.env.ref("analytic_decision_matrix_report.view_analytic_decision_matrix_open_move_tree")
+        form_ref = self.env.ref("analytic_decision_matrix_report.view_analytic_decision_matrix_open_move_form")
+        search_ref = self.env.ref("analytic_decision_matrix_report.view_analytic_decision_matrix_open_move_search")
+        action = self.env["ir.actions.actions"]._for_xml_id(
+            "analytic_decision_matrix_report.action_analytic_decision_matrix_open_move"
+        )
+        action.update(
+            {
+                "id": action_ref.id,
+                "menu_id": menu_ref.id,
+                "name": _("Detalle Ctas x Cob - %s") % (self.analytic_account_id.display_name,),
+                "domain": [("id", "in", detail_records.ids)],
+                "context": {
+                    **self.env.context,
+                    "create": False,
+                    "import_file": False,
+                    "analytic_matrix_wizard_id": self.wizard_id.id,
+                },
+                "views": [(tree_ref.id, "list"), (form_ref.id, "form")],
+                "search_view_id": search_ref.id,
+                "target": "current",
+            }
+        )
+        return action
 
     def action_open_cxp_documents(self):
         self.ensure_one()
+        self.env["analytic.decision.matrix.open.move"].search(
+            [("wizard_id", "=", self.wizard_id.id), ("create_uid", "=", self.env.uid)]
+        ).unlink()
         self.open_residual_detail_ids.filtered(lambda r: r.target_key == "cxp").unlink()
         vals_list = self._prepare_open_invoice_drilldown_vals("cxp")
         detail_records = self.env["analytic.decision.matrix.open.move"].create(vals_list)
-        return {
-            "type": "ir.actions.act_window",
-            "name": _("Detalle Ctas x Pag - %s") % (self.analytic_account_id.display_name,),
-            "res_model": "analytic.decision.matrix.open.move",
-            "view_mode": "list,form",
-            "domain": [("id", "in", detail_records.ids)],
-            "target": "current",
-        }
+        action_ref = self.env.ref("analytic_decision_matrix_report.action_analytic_decision_matrix_open_move")
+        menu_ref = self.env.ref("analytic_decision_matrix_report.menu_analytic_decision_matrix_wizard")
+        tree_ref = self.env.ref("analytic_decision_matrix_report.view_analytic_decision_matrix_open_move_tree")
+        form_ref = self.env.ref("analytic_decision_matrix_report.view_analytic_decision_matrix_open_move_form")
+        search_ref = self.env.ref("analytic_decision_matrix_report.view_analytic_decision_matrix_open_move_search")
+        action = self.env["ir.actions.actions"]._for_xml_id(
+            "analytic_decision_matrix_report.action_analytic_decision_matrix_open_move"
+        )
+        action.update(
+            {
+                "id": action_ref.id,
+                "menu_id": menu_ref.id,
+                "name": _("Detalle Ctas x Pag - %s") % (self.analytic_account_id.display_name,),
+                "domain": [("id", "in", detail_records.ids)],
+                "context": {
+                    **self.env.context,
+                    "create": False,
+                    "import_file": False,
+                    "analytic_matrix_wizard_id": self.wizard_id.id,
+                },
+                "views": [(tree_ref.id, "list"), (form_ref.id, "form")],
+                "search_view_id": search_ref.id,
+                "target": "current",
+            }
+        )
+        return action
 
 
 class AnalyticDecisionMatrixOpenMove(models.Model):
@@ -788,11 +863,68 @@ class AnalyticDecisionMatrixOpenMove(models.Model):
     is_total = fields.Boolean(default=False, readonly=True)
     partner_id = fields.Many2one(related="move_id.partner_id", store=True, readonly=True)
     invoice_date = fields.Date(related="move_id.invoice_date", store=True, readonly=True)
+    invoice_date_due = fields.Date(related="move_id.invoice_date_due", store=True, readonly=True)
     date = fields.Date(related="move_id.date", store=True, readonly=True)
-    amount_residual_total = fields.Monetary(currency_field="currency_id", readonly=True)
-    analytic_ratio = fields.Float(string="% Analitica", digits=(16, 2), readonly=True)
-    amount_residual_analytic = fields.Monetary(
+    amount_residual_total = fields.Monetary(
         currency_field="currency_id",
-        string="Residual Analitica",
+        string="Residual Documento",
         readonly=True,
     )
+    analytic_ratio = fields.Float(string="% Participacion Analitica", digits=(16, 2), readonly=True)
+    amount_residual_analytic = fields.Monetary(
+        currency_field="currency_id",
+        string="Residual Proyecto",
+        readonly=True,
+    )
+    days_overdue = fields.Integer(
+        string="Dias Vencido",
+        compute="_compute_days_overdue",
+        store=True,
+        readonly=True,
+    )
+    is_overdue = fields.Boolean(
+        string="Vencido",
+        compute="_compute_days_overdue",
+        store=True,
+        readonly=True,
+    )
+
+    @api.depends("invoice_date_due", "is_total")
+    def _compute_days_overdue(self):
+        today = fields.Date.context_today(self)
+        for rec in self:
+            if rec.is_total or not rec.invoice_date_due:
+                rec.days_overdue = 0
+                rec.is_overdue = False
+                continue
+            overdue = (today - rec.invoice_date_due).days
+            rec.days_overdue = overdue if overdue > 0 else 0
+            rec.is_overdue = overdue > 0
+
+    def action_open_business_doc_current(self):
+        self.ensure_one()
+        if self.is_total or not self.move_id:
+            return False
+        action = self.move_id.action_open_business_doc()
+        if action:
+            action["target"] = "current"
+        return action
+
+    def action_open_business_doc_modal(self):
+        self.ensure_one()
+        if self.is_total or not self.move_id:
+            return False
+        action = self.move_id.action_open_business_doc()
+        if action:
+            action["target"] = "new"
+        return action
+
+    def action_back_to_analytic_matrix(self):
+        wizard = self.wizard_id or self.wizard_line_id.wizard_id
+        if not wizard:
+            return False
+        action = self.env["ir.actions.actions"]._for_xml_id(
+            "analytic_decision_matrix_report.action_analytic_decision_matrix_wizard"
+        )
+        action.update({"res_id": wizard.id, "view_mode": "form", "views": [(False, "form")], "target": "current"})
+        return action

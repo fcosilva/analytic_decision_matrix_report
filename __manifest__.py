@@ -1,6 +1,6 @@
 {
-    "name": "Analytic Decision Matrix Report",
-    "summary": "Decision matrix report by analytic account/project",
+    "name": "Reporte Matriz de Decision Analitica",
+    "summary": "Matriz de decision por cuenta analitica/proyecto",
     "version": "17.0.1.0.0",
     "license": "AGPL-3",
     "author": "OpenLab",

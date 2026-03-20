@@ -36,7 +36,7 @@
                             <strong>Incluir reversados:</strong>
                             <span t-esc="'Si' if o.include_reversed else 'No'" />
                             <br />
-                            <strong>Drill-down por documentos:</strong>
+                            <strong>Desglose por documentos:</strong>
                             <span t-esc="'Si' if o.drilldown_document_view else 'No'" />
                         </p>
                         <table class="table table-sm o_main_table">

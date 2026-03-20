@@ -27,6 +27,7 @@
                                 name="action_open_documents"
                                 type="object"
                                 icon="fa-external-link"
+                                title="Abrir detalle de documentos"
                                 class="btn-link"
                                 invisible="is_total"
                             />
@@ -35,6 +36,7 @@
                                 name="action_open_ingreso_documents"
                                 type="object"
                                 icon="fa-external-link"
+                                title="Abrir detalle de ingreso"
                                 class="btn-link"
                                 invisible="is_total"
                             />
@@ -43,6 +45,7 @@
                                 name="action_open_cxc_documents"
                                 type="object"
                                 icon="fa-external-link"
+                                title="Abrir detalle de cuentas por cobrar"
                                 class="btn-link"
                                 invisible="is_total"
                             />
@@ -51,6 +54,7 @@
                                 name="action_open_reasignacion_in_documents"
                                 type="object"
                                 icon="fa-external-link"
+                                title="Abrir detalle de reasignacion positiva"
                                 class="btn-link"
                                 invisible="is_total"
                             />
@@ -59,6 +63,7 @@
                                 name="action_open_egresos_documents"
                                 type="object"
                                 icon="fa-external-link"
+                                title="Abrir detalle de egresos"
                                 class="btn-link"
                                 invisible="is_total"
                             />
@@ -67,6 +72,7 @@
                                 name="action_open_cxp_documents"
                                 type="object"
                                 icon="fa-external-link"
+                                title="Abrir detalle de cuentas por pagar"
                                 class="btn-link"
                                 invisible="is_total"
                             />
@@ -75,6 +81,7 @@
                                 name="action_open_reasignacion_out_documents"
                                 type="object"
                                 icon="fa-external-link"
+                                title="Abrir detalle de reasignacion negativa"
                                 class="btn-link"
                                 invisible="is_total"
                             />
@@ -137,16 +144,24 @@
         <field name="name">analytic.decision.matrix.open.move.tree</field>
         <field name="model">analytic.decision.matrix.open.move</field>
         <field name="arch" type="xml">
-            <tree string="Detalle Ctas x Cob/Pag" create="0" edit="0" delete="0" decoration-bf="is_total">
-                <field name="analytic_account_id" />
-                <field name="target_key" />
-                <field name="move_label" />
-                <field name="move_id" column_invisible="True" />
-                <field name="partner_id" />
-                <field name="invoice_date" />
-                <field name="date" />
+            <tree string="Detalle Ctas x Cob/Pag" create="0" edit="0" delete="0" import="0" decoration-bf="is_total">
+                <field name="target_key" invisible="is_total" />
+                <field name="move_id" string="Documento" />
+                <button
+                    name="action_open_business_doc_current"
+                    type="object"
+                    icon="fa-external-link-square"
+                    title="Abrir en pantalla completa"
+                    class="btn-link"
+                    invisible="is_total"
+                />
+                <field name="partner_id" string="Contacto" invisible="is_total" />
+                <field name="invoice_date" string="Fecha Factura" invisible="is_total" />
+                <field name="invoice_date_due" string="Fecha Vencimiento" invisible="is_total" />
+                <field name="days_overdue" invisible="is_total" />
+                <field name="date" string="Fecha Contable" invisible="is_total" />
                 <field name="amount_residual_total" />
-                <field name="analytic_ratio" />
+                <field name="analytic_ratio" invisible="is_total" />
                 <field name="amount_residual_analytic" />
                 <field name="is_total" column_invisible="True" />
             </tree>
@@ -159,24 +174,120 @@
         <field name="arch" type="xml">
             <form string="Detalle Ctas x Cob/Pag" create="0" edit="0" delete="0">
                 <sheet>
+                    <field name="is_total" invisible="1" />
                     <group>
                         <group>
-                            <field name="analytic_account_id" />
-                            <field name="target_key" />
-                            <field name="move_label" />
-                            <field name="move_id" />
-                            <field name="partner_id" />
+                            <field name="target_key" invisible="is_total" />
+                            <field name="move_label" invisible="not is_total" />
+                            <field name="move_id" invisible="is_total" />
+                            <field name="partner_id" invisible="is_total" />
                         </group>
                         <group>
-                            <field name="invoice_date" />
-                            <field name="date" />
+                            <field name="invoice_date" invisible="is_total" />
+                            <field name="invoice_date_due" invisible="is_total" />
+                            <field name="days_overdue" invisible="is_total" />
+                            <field name="date" invisible="is_total" />
                             <field name="amount_residual_total" />
-                            <field name="analytic_ratio" />
+                            <field name="analytic_ratio" invisible="is_total" />
                             <field name="amount_residual_analytic" />
                         </group>
                     </group>
                 </sheet>
             </form>
+        </field>
+    </record>
+
+    <record id="view_analytic_decision_matrix_open_move_search" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.open.move.search</field>
+        <field name="model">analytic.decision.matrix.open.move</field>
+        <field name="arch" type="xml">
+            <search string="Buscar detalle Ctas x Cob/Pag">
+                <field name="move_id" />
+                <field name="partner_id" />
+                <field name="target_key" />
+                <field name="invoice_date" />
+                <field name="invoice_date_due" />
+                <filter name="filter_cxc" string="Ctas x Cob" domain="[('target_key', '=', 'cxc')]" />
+                <filter name="filter_cxp" string="Ctas x Pag" domain="[('target_key', '=', 'cxp')]" />
+                <filter name="filter_vencidos" string="Vencidos" domain="[('is_overdue', '=', True)]" />
+                <filter name="filter_no_vencidos" string="No vencidos" domain="[('is_overdue', '=', False)]" />
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_partner" string="Contacto" context="{'group_by': 'partner_id'}" />
+                    <filter name="group_target" string="Tipo" context="{'group_by': 'target_key'}" />
+                    <filter name="group_due_date" string="Vencimiento" context="{'group_by': 'invoice_date_due'}" />
+                    <filter name="group_document" string="Documento" context="{'group_by': 'move_id'}" />
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_analytic_decision_matrix_open_move" model="ir.actions.act_window">
+        <field name="name">Detalle Ctas x Cob/Pag</field>
+        <field name="res_model">analytic.decision.matrix.open.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_analytic_decision_matrix_open_move_search" />
+        <field name="target">current</field>
+    </record>
+
+    <record id="action_analytic_decision_matrix_account_move" model="ir.actions.act_window">
+        <field name="name">Detalle Documentos</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="target">current</field>
+    </record>
+
+    <record id="action_analytic_decision_matrix_account_move_line" model="ir.actions.act_window">
+        <field name="name">Detalle Apuntes Contables</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">list,form</field>
+        <field name="target">current</field>
+    </record>
+
+    <record id="view_analytic_decision_matrix_account_move_tree" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.account.move.tree</field>
+        <field name="model">account.move</field>
+        <field name="arch" type="xml">
+            <tree string="Detalle Documentos" create="0" edit="0" delete="0" import="0">
+                <field name="name" />
+                <button
+                    name="action_open_business_doc_current"
+                    type="object"
+                    icon="fa-external-link-square"
+                    title="Abrir en pantalla completa"
+                    class="btn-link"
+                />
+                <field name="partner_id" />
+                <field name="invoice_date" />
+                <field name="invoice_date_due" />
+                <field name="date" />
+                <field name="amount_total_signed" />
+                <field name="payment_state" />
+                <field name="state" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_analytic_decision_matrix_account_move_line_tree" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.account.move.line.tree</field>
+        <field name="model">account.move.line</field>
+        <field name="arch" type="xml">
+            <tree string="Detalle Apuntes Contables" create="0" edit="0" delete="0" import="0">
+                <field name="date" />
+                <field name="move_id" string="Documento" />
+                <button
+                    name="action_open_business_doc_current"
+                    type="object"
+                    icon="fa-external-link-square"
+                    title="Abrir en pantalla completa"
+                    class="btn-link"
+                />
+                <field name="name" />
+                <field name="partner_id" />
+                <field name="account_id" />
+                <field name="debit" />
+                <field name="credit" />
+                <field name="balance" />
+            </tree>
         </field>
     </record>
 

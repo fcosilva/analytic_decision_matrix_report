@@ -20,8 +20,8 @@ msgstr "Incluir reversados"
 
 #. module: analytic_decision_matrix_report
 #: model:ir.model.fields,field_description:analytic_decision_matrix_report.field_analytic_decision_matrix_wizard__drilldown_document_view
-msgid "Drill-down por documentos"
-msgstr "Drill-down por documentos"
+msgid "Desglose por documentos"
+msgstr "Desglose por documentos"
 
 #. module: analytic_decision_matrix_report
 #: model:ir.model.fields,help:analytic_decision_matrix_report.field_analytic_decision_matrix_wizard__include_reversed
@@ -40,5 +40,5 @@ msgstr "Incluir reversados:"
 
 #. module: analytic_decision_matrix_report
 #: model_terms:ir.ui.view,arch_db:analytic_decision_matrix_report.report_analytic_decision_matrix
-msgid "Drill-down por documentos:"
-msgstr "Drill-down por documentos:"
+msgid "Desglose por documentos:"
+msgstr "Desglose por documentos:"
