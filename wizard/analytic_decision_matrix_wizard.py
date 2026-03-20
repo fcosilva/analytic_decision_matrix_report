@@ -321,3 +321,158 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
     reasignacion_out = fields.Monetary(currency_field="currency_id", string="Reasignacion (-)")
     saldo_devengado = fields.Monetary(currency_field="currency_id", string="Saldo Devengado")
     saldo_efectivo = fields.Monetary(currency_field="currency_id", string="Saldo Efectivo")
+
+    def _get_move_line_ids(self, extra_where="", extra_params=None):
+        self.ensure_one()
+        extra_params = extra_params or []
+        wizard = self.wizard_id
+        date_to = wizard._effective_date_to()
+        where_date_from = ""
+        params = [wizard.company_id.id, str(self.analytic_account_id.id)]
+
+        if wizard.date_from:
+            where_date_from = "AND aml.date >= %s"
+            params.append(wizard.date_from)
+
+        params.extend(extra_params)
+        params.append(date_to)
+        self.env.cr.execute(
+            f"""
+            SELECT aml.id
+            FROM account_move_line aml
+            JOIN account_move am ON am.id = aml.move_id
+            JOIN account_account aa ON aa.id = aml.account_id
+            LEFT JOIN account_journal aj ON aj.id = aml.journal_id
+            WHERE am.state = 'posted'
+              AND aml.company_id = %s
+              AND COALESCE(aml.analytic_distribution, '{{}}'::jsonb) ? %s
+              {where_date_from}
+              {extra_where}
+              AND aml.date <= %s
+            ORDER BY aml.date DESC, aml.id DESC
+            """,
+            tuple(params),
+        )
+        return [row[0] for row in self.env.cr.fetchall()]
+
+    def _open_move_lines_action(self, action_name, move_line_ids):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": action_name,
+            "res_model": "account.move.line",
+            "view_mode": "list,form",
+            "domain": [("id", "in", move_line_ids)],
+            "context": {
+                "search_default_group_by_move": 1,
+                "search_default_posted": 1,
+            },
+            "target": "current",
+        }
+
+    def _get_open_invoice_move_ids(self, target_key):
+        self.ensure_one()
+        wizard = self.wizard_id
+        date_to = wizard._effective_date_to()
+        move_ids = []
+        moves = self.env["account.move"].search(
+            [
+                ("company_id", "=", wizard.company_id.id),
+                ("state", "=", "posted"),
+                ("move_type", "in", ("out_invoice", "out_refund", "in_invoice", "in_refund")),
+                "|",
+                ("invoice_date", "<=", date_to),
+                "&",
+                ("invoice_date", "=", False),
+                ("date", "<=", date_to),
+            ]
+        )
+        for move in moves:
+            weights = wizard._weights_by_analytic(move, {self.analytic_account_id.id})
+            if not weights.get(self.analytic_account_id.id):
+                continue
+            if not abs(wizard._residual_signed_at_date(move, date_to)):
+                continue
+            if target_key == "cxc" and move.move_type in ("out_invoice", "out_refund"):
+                move_ids.append(move.id)
+            if target_key == "cxp" and move.move_type in ("in_invoice", "in_refund"):
+                move_ids.append(move.id)
+        return move_ids
+
+    def _open_moves_action(self, action_name, move_ids):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": action_name,
+            "res_model": "account.move",
+            "view_mode": "list,form",
+            "domain": [("id", "in", move_ids)],
+            "context": {"search_default_posted": 1},
+            "target": "current",
+        }
+
+    def action_open_documents(self):
+        self.ensure_one()
+        move_line_ids = self._get_move_line_ids()
+        return self._open_move_lines_action(
+            _("Detalle documentos - %s") % (self.analytic_account_id.display_name,),
+            move_line_ids,
+        )
+
+    def action_open_ingreso_documents(self):
+        self.ensure_one()
+        move_line_ids = self._get_move_line_ids(
+            extra_where="AND aa.account_type IN ('income', 'income_other')"
+        )
+        return self._open_move_lines_action(
+            _("Detalle ingreso - %s") % (self.analytic_account_id.display_name,),
+            move_line_ids,
+        )
+
+    def action_open_egresos_documents(self):
+        self.ensure_one()
+        move_line_ids = self._get_move_line_ids(
+            extra_where="AND aa.account_type IN ('expense', 'expense_direct_cost', 'expense_depreciation')"
+        )
+        return self._open_move_lines_action(
+            _("Detalle egresos - %s") % (self.analytic_account_id.display_name,),
+            move_line_ids,
+        )
+
+    def action_open_reasignacion_in_documents(self):
+        self.ensure_one()
+        move_line_ids = self._get_move_line_ids(
+            extra_where="AND aj.code = %s AND aml.debit > 0",
+            extra_params=[self.wizard_id.reasignacion_journal_code],
+        )
+        return self._open_move_lines_action(
+            _("Detalle reasignacion (+) - %s") % (self.analytic_account_id.display_name,),
+            move_line_ids,
+        )
+
+    def action_open_reasignacion_out_documents(self):
+        self.ensure_one()
+        move_line_ids = self._get_move_line_ids(
+            extra_where="AND aj.code = %s AND aml.credit > 0",
+            extra_params=[self.wizard_id.reasignacion_journal_code],
+        )
+        return self._open_move_lines_action(
+            _("Detalle reasignacion (-) - %s") % (self.analytic_account_id.display_name,),
+            move_line_ids,
+        )
+
+    def action_open_cxc_documents(self):
+        self.ensure_one()
+        move_ids = self._get_open_invoice_move_ids("cxc")
+        return self._open_moves_action(
+            _("Detalle Ctas x Cob - %s") % (self.analytic_account_id.display_name,),
+            move_ids,
+        )
+
+    def action_open_cxp_documents(self):
+        self.ensure_one()
+        move_ids = self._get_open_invoice_move_ids("cxp")
+        return self._open_moves_action(
+            _("Detalle Ctas x Pag - %s") % (self.analytic_account_id.display_name,),
+            move_ids,
+        )

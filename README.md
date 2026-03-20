@@ -46,6 +46,9 @@ Nota:
 3. Clic en `Generar Matriz`.
 4. Opcional: clic en `Imprimir PDF`.
 5. Puedes volver a abrir el mismo registro luego para consultar o recalcular.
+6. En cada fila de proyecto, usar:
+- `Detalle` para todos los documentos del proyecto.
+- los valores de `Ingreso`, `CxC`, `Reasignacion (+)`, `Egresos`, `CxP` y `Reasignacion (-)` para detalle por columna.
 
 Comportamiento de fechas:
 - Si `Fecha Desde` esta vacia, toma toda la historia disponible hasta `Fecha Hasta`.
