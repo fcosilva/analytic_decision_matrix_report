@@ -22,23 +22,67 @@
                     </group>
                     <separator string="Proyectos (Cuentas Analiticas)" />
                     <field name="line_ids" nolabel="1" readonly="1" options="{'no_open': True}">
-                        <tree create="0" delete="0" edit="0">
-                            <field name="analytic_account_id" />
-                            <button name="action_open_documents" type="object" icon="fa-external-link" class="btn-link" />
+                        <tree create="0" delete="0" edit="0" decoration-bf="is_total">
+                            <field name="project_label" />
+                            <button
+                                name="action_open_documents"
+                                type="object"
+                                icon="fa-external-link"
+                                class="btn-link"
+                                invisible="is_total"
+                            />
                             <field name="ingreso" />
-                            <button name="action_open_ingreso_documents" type="object" icon="fa-external-link" class="btn-link" />
+                            <button
+                                name="action_open_ingreso_documents"
+                                type="object"
+                                icon="fa-external-link"
+                                class="btn-link"
+                                invisible="is_total"
+                            />
                             <field name="cxc" />
-                            <button name="action_open_cxc_documents" type="object" icon="fa-external-link" class="btn-link" />
+                            <button
+                                name="action_open_cxc_documents"
+                                type="object"
+                                icon="fa-external-link"
+                                class="btn-link"
+                                invisible="is_total"
+                            />
                             <field name="reasignacion_in" />
-                            <button name="action_open_reasignacion_in_documents" type="object" icon="fa-external-link" class="btn-link" />
+                            <button
+                                name="action_open_reasignacion_in_documents"
+                                type="object"
+                                icon="fa-external-link"
+                                class="btn-link"
+                                invisible="is_total"
+                            />
                             <field name="egresos" />
-                            <button name="action_open_egresos_documents" type="object" icon="fa-external-link" class="btn-link" />
+                            <button
+                                name="action_open_egresos_documents"
+                                type="object"
+                                icon="fa-external-link"
+                                class="btn-link"
+                                invisible="is_total"
+                            />
                             <field name="cxp" />
-                            <button name="action_open_cxp_documents" type="object" icon="fa-external-link" class="btn-link" />
+                            <button
+                                name="action_open_cxp_documents"
+                                type="object"
+                                icon="fa-external-link"
+                                class="btn-link"
+                                invisible="is_total"
+                            />
                             <field name="reasignacion_out" />
-                            <button name="action_open_reasignacion_out_documents" type="object" icon="fa-external-link" class="btn-link" />
+                            <button
+                                name="action_open_reasignacion_out_documents"
+                                type="object"
+                                icon="fa-external-link"
+                                class="btn-link"
+                                invisible="is_total"
+                            />
                             <field name="saldo_devengado" />
                             <field name="saldo_efectivo" />
+                            <field name="currency_id" column_invisible="True" />
+                            <field name="is_total" column_invisible="True" />
                         </tree>
                     </field>
                 </sheet>
@@ -83,6 +127,53 @@
         <field name="res_model">analytic.decision.matrix.wizard</field>
         <field name="view_mode">tree,form</field>
         <field name="target">current</field>
+    </record>
+
+    <record id="view_analytic_decision_matrix_open_move_tree" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.open.move.tree</field>
+        <field name="model">analytic.decision.matrix.open.move</field>
+        <field name="arch" type="xml">
+            <tree string="Detalle Ctas x Cob/Pag" create="0" edit="0" delete="0" decoration-bf="is_total">
+                <field name="analytic_account_id" />
+                <field name="target_key" />
+                <field name="move_label" />
+                <field name="move_id" column_invisible="True" />
+                <field name="partner_id" />
+                <field name="invoice_date" />
+                <field name="date" />
+                <field name="amount_residual_total" />
+                <field name="analytic_ratio" />
+                <field name="amount_residual_analytic" />
+                <field name="is_total" column_invisible="True" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_analytic_decision_matrix_open_move_form" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.open.move.form</field>
+        <field name="model">analytic.decision.matrix.open.move</field>
+        <field name="arch" type="xml">
+            <form string="Detalle Ctas x Cob/Pag" create="0" edit="0" delete="0">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="analytic_account_id" />
+                            <field name="target_key" />
+                            <field name="move_label" />
+                            <field name="move_id" />
+                            <field name="partner_id" />
+                        </group>
+                        <group>
+                            <field name="invoice_date" />
+                            <field name="date" />
+                            <field name="amount_residual_total" />
+                            <field name="analytic_ratio" />
+                            <field name="amount_residual_analytic" />
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
     </record>
 
     <menuitem

@@ -36,7 +36,6 @@ class AnalyticDecisionMatrixWizard(models.Model):
         string="Resultados",
         readonly=True,
     )
-
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -58,6 +57,7 @@ class AnalyticDecisionMatrixWizard(models.Model):
         self._load_open_residuals(amounts_by_project, selected_analytic_ids)
 
         new_lines = []
+        totals = defaultdict(float)
         analytic_accounts = self.env["account.analytic.account"].browse(amounts_by_project.keys()).exists()
         for analytic in analytic_accounts.sorted(lambda a: (a.name or "").lower()):
             row = amounts_by_project.get(analytic.id, {})
@@ -100,6 +100,34 @@ class AnalyticDecisionMatrixWizard(models.Model):
                         "reasignacion_out": reasignacion_out,
                         "saldo_devengado": saldo_devengado,
                         "saldo_efectivo": saldo_efectivo,
+                    },
+                )
+            )
+            totals["ingreso"] += ingreso
+            totals["cxc"] += cxc
+            totals["reasignacion_in"] += reasignacion_in
+            totals["egresos"] += egresos
+            totals["cxp"] += cxp
+            totals["reasignacion_out"] += reasignacion_out
+            totals["saldo_devengado"] += saldo_devengado
+            totals["saldo_efectivo"] += saldo_efectivo
+
+        if new_lines:
+            new_lines.append(
+                (
+                    0,
+                    0,
+                    {
+                        "is_total": True,
+                        "project_label": _("TOTAL GENERAL"),
+                        "ingreso": totals["ingreso"],
+                        "cxc": totals["cxc"],
+                        "reasignacion_in": totals["reasignacion_in"],
+                        "egresos": totals["egresos"],
+                        "cxp": totals["cxp"],
+                        "reasignacion_out": totals["reasignacion_out"],
+                        "saldo_devengado": totals["saldo_devengado"],
+                        "saldo_efectivo": totals["saldo_efectivo"],
                     },
                 )
             )
@@ -231,12 +259,21 @@ class AnalyticDecisionMatrixWizard(models.Model):
         )
 
         for move in moves:
-            weights = self._weights_by_analytic(move, selected_analytic_ids)
-            if not weights:
+            # Always compute weights against the full analytic distribution of the move.
+            # If we normalize only on a filtered subset, CxC/CxP can be overstated to 100%.
+            all_weights = self._weights_by_analytic(move, None)
+            if not all_weights:
                 continue
 
-            total_weight = sum(weights.values())
+            total_weight = sum(all_weights.values())
             if not total_weight:
+                continue
+
+            if selected_analytic_ids:
+                weights = {aid: w for aid, w in all_weights.items() if aid in selected_analytic_ids}
+            else:
+                weights = all_weights
+            if not weights:
                 continue
 
             move_type = move.move_type
@@ -297,7 +334,7 @@ class AnalyticDecisionMatrixWizard(models.Model):
                     analytic_id = int(key)
                 except (TypeError, ValueError):
                     continue
-                if selected_analytic_ids and analytic_id not in selected_analytic_ids:
+                if selected_analytic_ids is not None and analytic_id not in selected_analytic_ids:
                     continue
                 weights[analytic_id] += base * (float(pct) / 100.0)
         return weights
@@ -306,12 +343,14 @@ class AnalyticDecisionMatrixWizard(models.Model):
 class AnalyticDecisionMatrixWizardLine(models.Model):
     _name = "analytic.decision.matrix.wizard.line"
     _description = "Linea Matriz de Decision Analitica"
-    _order = "analytic_account_id"
+    _order = "is_total, project_label, id"
 
     wizard_id = fields.Many2one("analytic.decision.matrix.wizard", required=True, ondelete="cascade")
     company_id = fields.Many2one(related="wizard_id.company_id", store=False)
     currency_id = fields.Many2one(related="company_id.currency_id", store=False)
-    analytic_account_id = fields.Many2one("account.analytic.account", string="Proyecto", required=True)
+    analytic_account_id = fields.Many2one("account.analytic.account", string="Proyecto")
+    is_total = fields.Boolean(default=False, readonly=True)
+    project_label = fields.Char(string="Proyecto", compute="_compute_project_label", store=True)
 
     ingreso = fields.Monetary(currency_field="currency_id", string="Ingreso")
     cxc = fields.Monetary(currency_field="currency_id", string="Ctas x Cob")
@@ -321,9 +360,25 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
     reasignacion_out = fields.Monetary(currency_field="currency_id", string="Reasignacion (-)")
     saldo_devengado = fields.Monetary(currency_field="currency_id", string="Saldo Devengado")
     saldo_efectivo = fields.Monetary(currency_field="currency_id", string="Saldo Efectivo")
+    open_residual_detail_ids = fields.One2many(
+        "analytic.decision.matrix.open.move",
+        "wizard_line_id",
+        string="Detalle Ctas x Cob/Pag",
+        readonly=True,
+    )
+
+    @api.depends("analytic_account_id", "is_total")
+    def _compute_project_label(self):
+        for line in self:
+            if line.is_total:
+                line.project_label = _("TOTAL GENERAL")
+            else:
+                line.project_label = line.analytic_account_id.display_name or ""
 
     def _get_move_line_ids(self, extra_where="", extra_params=None):
         self.ensure_one()
+        if self.is_total or not self.analytic_account_id:
+            return []
         extra_params = extra_params or []
         wizard = self.wizard_id
         date_to = wizard._effective_date_to()
@@ -372,6 +427,8 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
 
     def _get_open_invoice_move_ids(self, target_key):
         self.ensure_one()
+        if self.is_total or not self.analytic_account_id:
+            return []
         wizard = self.wizard_id
         date_to = wizard._effective_date_to()
         move_ids = []
@@ -388,7 +445,7 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
             ]
         )
         for move in moves:
-            weights = wizard._weights_by_analytic(move, {self.analytic_account_id.id})
+            weights = wizard._weights_by_analytic(move, None)
             if not weights.get(self.analytic_account_id.id):
                 continue
             if not abs(wizard._residual_signed_at_date(move, date_to)):
@@ -398,6 +455,80 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
             if target_key == "cxp" and move.move_type in ("in_invoice", "in_refund"):
                 move_ids.append(move.id)
         return move_ids
+
+    def _prepare_open_invoice_drilldown_vals(self, target_key):
+        self.ensure_one()
+        if self.is_total or not self.analytic_account_id:
+            return []
+        wizard = self.wizard_id
+        date_to = wizard._effective_date_to()
+        vals_list = []
+        total_residual_amount = 0.0
+        total_analytic_amount = 0.0
+        moves = self.env["account.move"].search(
+            [
+                ("company_id", "=", wizard.company_id.id),
+                ("state", "=", "posted"),
+                ("move_type", "in", ("out_invoice", "out_refund", "in_invoice", "in_refund")),
+                "|",
+                ("invoice_date", "<=", date_to),
+                "&",
+                ("invoice_date", "=", False),
+                ("date", "<=", date_to),
+            ]
+        )
+        for move in moves:
+            weights = wizard._weights_by_analytic(move, None)
+            analytic_weight = weights.get(self.analytic_account_id.id)
+            if not analytic_weight:
+                continue
+
+            total_weight = sum(weights.values())
+            if not total_weight:
+                continue
+
+            residual_signed = wizard._residual_signed_at_date(move, date_to)
+            residual_abs = abs(residual_signed)
+            if not residual_abs:
+                continue
+
+            if target_key == "cxc" and move.move_type == "out_invoice":
+                residual_total = residual_abs
+            elif target_key == "cxc" and move.move_type == "out_refund":
+                residual_total = -residual_abs
+            elif target_key == "cxp" and move.move_type == "in_invoice":
+                residual_total = residual_abs
+            elif target_key == "cxp" and move.move_type == "in_refund":
+                residual_total = -residual_abs
+            else:
+                continue
+
+            analytic_ratio = analytic_weight / total_weight
+            vals_list.append(
+                {
+                    "wizard_line_id": self.id,
+                    "target_key": target_key,
+                    "move_id": move.id,
+                    "move_label": move.name or move.ref or "",
+                    "amount_residual_total": residual_total,
+                    "analytic_ratio": analytic_ratio * 100.0,
+                    "amount_residual_analytic": residual_total * analytic_ratio,
+                }
+            )
+            total_residual_amount += residual_total
+            total_analytic_amount += residual_total * analytic_ratio
+        if vals_list:
+            vals_list.append(
+                {
+                    "wizard_line_id": self.id,
+                    "target_key": target_key,
+                    "is_total": True,
+                    "move_label": _("TOTAL GENERAL"),
+                    "amount_residual_total": total_residual_amount,
+                    "amount_residual_analytic": total_analytic_amount,
+                }
+            )
+        return vals_list
 
     def _open_moves_action(self, action_name, move_ids):
         self.ensure_one()
@@ -463,16 +594,66 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
 
     def action_open_cxc_documents(self):
         self.ensure_one()
-        move_ids = self._get_open_invoice_move_ids("cxc")
-        return self._open_moves_action(
-            _("Detalle Ctas x Cob - %s") % (self.analytic_account_id.display_name,),
-            move_ids,
-        )
+        self.open_residual_detail_ids.filtered(lambda r: r.target_key == "cxc").unlink()
+        vals_list = self._prepare_open_invoice_drilldown_vals("cxc")
+        detail_records = self.env["analytic.decision.matrix.open.move"].create(vals_list)
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Detalle Ctas x Cob - %s") % (self.analytic_account_id.display_name,),
+            "res_model": "analytic.decision.matrix.open.move",
+            "view_mode": "list,form",
+            "domain": [("id", "in", detail_records.ids)],
+            "target": "current",
+        }
 
     def action_open_cxp_documents(self):
         self.ensure_one()
-        move_ids = self._get_open_invoice_move_ids("cxp")
-        return self._open_moves_action(
-            _("Detalle Ctas x Pag - %s") % (self.analytic_account_id.display_name,),
-            move_ids,
-        )
+        self.open_residual_detail_ids.filtered(lambda r: r.target_key == "cxp").unlink()
+        vals_list = self._prepare_open_invoice_drilldown_vals("cxp")
+        detail_records = self.env["analytic.decision.matrix.open.move"].create(vals_list)
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Detalle Ctas x Pag - %s") % (self.analytic_account_id.display_name,),
+            "res_model": "analytic.decision.matrix.open.move",
+            "view_mode": "list,form",
+            "domain": [("id", "in", detail_records.ids)],
+            "target": "current",
+        }
+
+
+class AnalyticDecisionMatrixOpenMove(models.Model):
+    _name = "analytic.decision.matrix.open.move"
+    _description = "Detalle Ctas x Cob/Pag por Cuenta Analitica"
+    _order = "is_total, invoice_date desc, move_id desc, id desc"
+
+    wizard_line_id = fields.Many2one(
+        "analytic.decision.matrix.wizard.line",
+        required=True,
+        ondelete="cascade",
+    )
+    wizard_id = fields.Many2one(related="wizard_line_id.wizard_id", store=True, readonly=True)
+    company_id = fields.Many2one(related="wizard_id.company_id", store=True, readonly=True)
+    currency_id = fields.Many2one(related="company_id.currency_id", store=True, readonly=True)
+    analytic_account_id = fields.Many2one(
+        related="wizard_line_id.analytic_account_id",
+        store=True,
+        readonly=True,
+    )
+    target_key = fields.Selection(
+        [("cxc", "Ctas x Cob"), ("cxp", "Ctas x Pag")],
+        required=True,
+        readonly=True,
+    )
+    move_id = fields.Many2one("account.move", readonly=True)
+    move_label = fields.Char(string="Documento", readonly=True)
+    is_total = fields.Boolean(default=False, readonly=True)
+    partner_id = fields.Many2one(related="move_id.partner_id", store=True, readonly=True)
+    invoice_date = fields.Date(related="move_id.invoice_date", store=True, readonly=True)
+    date = fields.Date(related="move_id.date", store=True, readonly=True)
+    amount_residual_total = fields.Monetary(currency_field="currency_id", readonly=True)
+    analytic_ratio = fields.Float(string="% Analitica", digits=(16, 2), readonly=True)
+    amount_residual_analytic = fields.Monetary(
+        currency_field="currency_id",
+        string="Residual Analitica",
+        readonly=True,
+    )
