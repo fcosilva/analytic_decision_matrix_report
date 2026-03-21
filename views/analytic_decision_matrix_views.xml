@@ -20,18 +20,10 @@
                         </group>
                     </group>
                     <separator string="Proyectos (Cuentas Analiticas)" />
-                    <field name="line_ids" nolabel="1" readonly="1" options="{'no_open': True}">
+                    <field name="line_ids" nolabel="1" readonly="1">
                         <tree create="0" delete="0" edit="0" decoration-bf="is_total">
                             <field name="project_label" />
-                            <button
-                                name="action_open_documents"
-                                type="object"
-                                icon="fa-external-link"
-                                title="Abrir detalle de documentos"
-                                class="btn-link"
-                                invisible="is_total"
-                            />
-                            <field name="ingreso" />
+                            <field name="ingreso" sum="Total ingreso" />
                             <button
                                 name="action_open_ingreso_documents"
                                 type="object"
@@ -40,7 +32,7 @@
                                 class="btn-link"
                                 invisible="is_total"
                             />
-                            <field name="cxc" />
+                            <field name="cxc" sum="Total CxC" />
                             <button
                                 name="action_open_cxc_documents"
                                 type="object"
@@ -49,7 +41,7 @@
                                 class="btn-link"
                                 invisible="is_total"
                             />
-                            <field name="reasignacion_in" />
+                            <field name="reasignacion_in" sum="Total reasignación (+)" />
                             <button
                                 name="action_open_reasignacion_in_documents"
                                 type="object"
@@ -58,7 +50,7 @@
                                 class="btn-link"
                                 invisible="is_total"
                             />
-                            <field name="egresos" />
+                            <field name="egresos" sum="Total egresos" />
                             <button
                                 name="action_open_egresos_documents"
                                 type="object"
@@ -67,7 +59,7 @@
                                 class="btn-link"
                                 invisible="is_total"
                             />
-                            <field name="cxp" />
+                            <field name="cxp" sum="Total CxP" />
                             <button
                                 name="action_open_cxp_documents"
                                 type="object"
@@ -76,7 +68,7 @@
                                 class="btn-link"
                                 invisible="is_total"
                             />
-                            <field name="reasignacion_out" />
+                            <field name="reasignacion_out" sum="Total reasignación (-)" />
                             <button
                                 name="action_open_reasignacion_out_documents"
                                 type="object"
@@ -85,12 +77,133 @@
                                 class="btn-link"
                                 invisible="is_total"
                             />
-                            <field name="saldo_devengado" />
-                            <field name="saldo_efectivo" />
+                            <field name="saldo_devengado" sum="Total saldo devengado" />
+                            <field name="saldo_efectivo" sum="Total saldo efectivo" />
                             <field name="currency_id" column_invisible="True" />
                             <field name="is_total" column_invisible="True" />
                         </tree>
                     </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_analytic_decision_matrix_wizard_line_form" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.wizard.line.form</field>
+        <field name="model">analytic.decision.matrix.wizard.line</field>
+        <field name="arch" type="xml">
+            <form string="Detalle de Proyecto" create="0" edit="0" delete="0">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="project_label" readonly="1" />
+                            <field name="wizard_id" readonly="1" />
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1" />
+                        </group>
+                    </group>
+                    <separator string="Resumen" />
+                    <group>
+                        <group>
+                            <field name="ingreso" readonly="1" />
+                            <field name="cxc" readonly="1" />
+                            <field name="reasignacion_in" readonly="1" />
+                            <field name="saldo_devengado" readonly="1" />
+                        </group>
+                        <group>
+                            <field name="egresos" readonly="1" />
+                            <field name="cxp" readonly="1" />
+                            <field name="reasignacion_out" readonly="1" />
+                            <field name="saldo_efectivo" readonly="1" />
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Ingresos">
+                            <field name="modal_ingreso_detail_ids" readonly="1">
+                                <tree create="0" edit="0" delete="0" import="0">
+                                    <field name="move_id" string="Documento" />
+                                    <button name="action_open_business_doc_current" type="object" icon="fa-external-link-square" title="Abrir en pantalla completa" class="btn-link" />
+                                    <field name="partner_id" string="Contacto" />
+                                    <field name="invoice_date" string="Fecha Factura" />
+                                    <field name="invoice_date_due" string="Fecha Vencimiento" />
+                                    <field name="date" string="Fecha Contable" />
+                                    <field name="amount_analytic" sum="Total ingresos" />
+                                    <field name="currency_id" column_invisible="True" />
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Egresos">
+                            <field name="modal_egresos_detail_ids" readonly="1">
+                                <tree create="0" edit="0" delete="0" import="0">
+                                    <field name="move_id" string="Documento" />
+                                    <button name="action_open_business_doc_current" type="object" icon="fa-external-link-square" title="Abrir en pantalla completa" class="btn-link" />
+                                    <field name="partner_id" string="Contacto" />
+                                    <field name="invoice_date" string="Fecha Factura" />
+                                    <field name="invoice_date_due" string="Fecha Vencimiento" />
+                                    <field name="date" string="Fecha Contable" />
+                                    <field name="amount_analytic" sum="Total egresos" />
+                                    <field name="currency_id" column_invisible="True" />
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Ctas x Cob">
+                            <field name="modal_cxc_detail_ids" readonly="1">
+                                <tree create="0" edit="0" delete="0" import="0">
+                                    <field name="move_id" string="Documento" />
+                                    <button name="action_open_business_doc_current" type="object" icon="fa-external-link-square" title="Abrir en pantalla completa" class="btn-link" />
+                                    <field name="partner_id" string="Contacto" />
+                                    <field name="invoice_date" string="Fecha Factura" />
+                                    <field name="invoice_date_due" string="Fecha Vencimiento" />
+                                    <field name="date" string="Fecha Contable" />
+                                    <field name="amount_analytic" sum="Total CxC" />
+                                    <field name="currency_id" column_invisible="True" />
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Ctas x Pag">
+                            <field name="modal_cxp_detail_ids" readonly="1">
+                                <tree create="0" edit="0" delete="0" import="0">
+                                    <field name="move_id" string="Documento" />
+                                    <button name="action_open_business_doc_current" type="object" icon="fa-external-link-square" title="Abrir en pantalla completa" class="btn-link" />
+                                    <field name="partner_id" string="Contacto" />
+                                    <field name="invoice_date" string="Fecha Factura" />
+                                    <field name="invoice_date_due" string="Fecha Vencimiento" />
+                                    <field name="date" string="Fecha Contable" />
+                                    <field name="amount_analytic" sum="Total CxP" />
+                                    <field name="currency_id" column_invisible="True" />
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Reasignación (+)">
+                            <field name="modal_reasignacion_in_detail_ids" readonly="1">
+                                <tree create="0" edit="0" delete="0" import="0">
+                                    <field name="move_id" string="Documento" />
+                                    <button name="action_open_business_doc_current" type="object" icon="fa-external-link-square" title="Abrir en pantalla completa" class="btn-link" />
+                                    <field name="partner_id" string="Contacto" />
+                                    <field name="invoice_date" string="Fecha Factura" />
+                                    <field name="invoice_date_due" string="Fecha Vencimiento" />
+                                    <field name="date" string="Fecha Contable" />
+                                    <field name="amount_analytic" sum="Total reasignación (+)" />
+                                    <field name="currency_id" column_invisible="True" />
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Reasignación (-)">
+                            <field name="modal_reasignacion_out_detail_ids" readonly="1">
+                                <tree create="0" edit="0" delete="0" import="0">
+                                    <field name="move_id" string="Documento" />
+                                    <button name="action_open_business_doc_current" type="object" icon="fa-external-link-square" title="Abrir en pantalla completa" class="btn-link" />
+                                    <field name="partner_id" string="Contacto" />
+                                    <field name="invoice_date" string="Fecha Factura" />
+                                    <field name="invoice_date_due" string="Fecha Vencimiento" />
+                                    <field name="date" string="Fecha Contable" />
+                                    <field name="amount_analytic" sum="Total reasignación (-)" />
+                                    <field name="currency_id" column_invisible="True" />
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
@@ -160,9 +273,10 @@
                 <field name="invoice_date_due" string="Fecha Vencimiento" invisible="is_total" />
                 <field name="days_overdue" invisible="is_total" />
                 <field name="date" string="Fecha Contable" invisible="is_total" />
-                <field name="amount_residual_total" />
+                <field name="amount_residual_total" sum="Total residual documento" />
                 <field name="analytic_ratio" invisible="is_total" />
-                <field name="amount_residual_analytic" />
+                <field name="amount_residual_analytic" sum="Total residual analitico" />
+                <field name="currency_id" column_invisible="True" />
                 <field name="is_total" column_invisible="True" />
             </tree>
         </field>
@@ -190,6 +304,7 @@
                             <field name="amount_residual_total" />
                             <field name="analytic_ratio" invisible="is_total" />
                             <field name="amount_residual_analytic" />
+                            <field name="currency_id" invisible="1" />
                         </group>
                     </group>
                 </sheet>
@@ -229,6 +344,66 @@
         <field name="target">current</field>
     </record>
 
+    <record id="view_analytic_decision_matrix_open_document_tree" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.open.document.tree</field>
+        <field name="model">analytic.decision.matrix.open.document</field>
+        <field name="arch" type="xml">
+            <tree string="Detalle Documentos Analiticos" create="0" edit="0" delete="0" import="0" decoration-bf="is_total">
+                <field name="target_key" invisible="is_total" />
+                <field name="move_id" string="Documento" />
+                <button
+                    name="action_open_business_doc_current"
+                    type="object"
+                    icon="fa-external-link-square"
+                    title="Abrir en pantalla completa"
+                    class="btn-link"
+                    invisible="is_total"
+                />
+                <field name="partner_id" string="Contacto" invisible="is_total" />
+                <field name="invoice_date" string="Fecha Factura" invisible="is_total" />
+                <field name="invoice_date_due" string="Fecha Vencimiento" invisible="is_total" />
+                <field name="date" string="Fecha Contable" invisible="is_total" />
+                <field name="amount_analytic" sum="Total analitico" />
+                <field name="currency_id" column_invisible="True" />
+                <field name="is_total" column_invisible="True" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_analytic_decision_matrix_open_document_form" model="ir.ui.view">
+        <field name="name">analytic.decision.matrix.open.document.form</field>
+        <field name="model">analytic.decision.matrix.open.document</field>
+        <field name="arch" type="xml">
+            <form string="Detalle Documentos Analiticos" create="0" edit="0" delete="0">
+                <sheet>
+                    <field name="is_total" invisible="1" />
+                    <group>
+                        <group>
+                            <field name="target_key" invisible="is_total" />
+                            <field name="move_label" invisible="not is_total" />
+                            <field name="move_id" invisible="is_total" />
+                            <field name="partner_id" invisible="is_total" />
+                        </group>
+                        <group>
+                            <field name="invoice_date" invisible="is_total" />
+                            <field name="invoice_date_due" invisible="is_total" />
+                            <field name="date" invisible="is_total" />
+                            <field name="amount_analytic" />
+                            <field name="currency_id" invisible="1" />
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_analytic_decision_matrix_open_document" model="ir.actions.act_window">
+        <field name="name">Detalle Documentos Analiticos</field>
+        <field name="res_model">analytic.decision.matrix.open.document</field>
+        <field name="view_mode">list,form</field>
+        <field name="target">current</field>
+    </record>
+
     <record id="action_analytic_decision_matrix_account_move" model="ir.actions.act_window">
         <field name="name">Detalle Documentos</field>
         <field name="res_model">account.move</field>
@@ -260,7 +435,8 @@
                 <field name="invoice_date" />
                 <field name="invoice_date_due" />
                 <field name="date" />
-                <field name="amount_total_signed" />
+                <field name="amount_total_signed" sum="Total documentos" />
+                <field name="company_currency_id" column_invisible="True" />
                 <field name="payment_state" />
                 <field name="state" />
             </tree>
@@ -284,19 +460,151 @@
                 <field name="name" />
                 <field name="partner_id" />
                 <field name="account_id" />
-                <field name="debit" />
-                <field name="credit" />
-                <field name="balance" />
+                <field name="debit" sum="Total débito" />
+                <field name="credit" sum="Total crédito" />
+                <field name="balance" sum="Total analítico" />
+                <field name="company_currency_id" column_invisible="True" />
             </tree>
         </field>
     </record>
 
+    <record id="view_analytic_reassignment_wizard_tree" model="ir.ui.view">
+        <field name="name">analytic.reassignment.wizard.tree</field>
+        <field name="model">analytic.reassignment.wizard</field>
+        <field name="arch" type="xml">
+            <tree string="Asistente Reasignación Analítica" create="1" edit="1" delete="1">
+                <field name="name" />
+                <field name="create_date" string="Creado" />
+                <field name="company_id" />
+                <field name="date" />
+                <field name="analytic_origin_id" />
+                <field name="analytic_destination_id" />
+                <field name="amount" />
+                <field name="state" />
+                <field name="move_id" />
+                <field name="currency_id" column_invisible="True" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_analytic_reassignment_wizard_form" model="ir.ui.view">
+        <field name="name">analytic.reassignment.wizard.form</field>
+        <field name="model">analytic.reassignment.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Asistente de Reasignación Analítica">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,preview,done" />
+                    <button
+                        name="action_preview"
+                        type="object"
+                        string="Previsualizar"
+                        class="btn-secondary"
+                        invisible="state == 'done'"
+                    />
+                    <button
+                        name="action_confirm"
+                        type="object"
+                        string="Confirmar y Contabilizar"
+                        class="btn-primary"
+                        invisible="state == 'done'"
+                    />
+                </header>
+                <sheet>
+                    <group string="Información General" col="2">
+                        <group>
+                            <field name="name" readonly="1" />
+                            <field name="company_id" readonly="state == 'done'" />
+                            <field name="date" readonly="state == 'done'" />
+                            <field name="move_id" readonly="1" />
+                        </group>
+                        <group>
+                            <field name="journal_id" readonly="state == 'done'" />
+                            <field name="bridge_account_id" readonly="state == 'done'" />
+                            <field name="amount" readonly="state == 'done'" />
+                            <field name="support_ref" readonly="state == 'done'" />
+                            <field name="currency_id" invisible="1" />
+                        </group>
+                    </group>
+                    <group string="Detalle de Reasignación" col="2">
+                        <group>
+                            <field name="analytic_origin_id" readonly="state == 'done'" />
+                            <field name="reason" readonly="state == 'done'" />
+                        </group>
+                        <group>
+                            <field name="analytic_destination_id" readonly="state == 'done'" />
+                        </group>
+                    </group>
+                    <group invisible="not warning_message">
+                        <field name="warning_message" readonly="1" />
+                    </group>
+                    <separator string="Previsualización de Impacto" invisible="state == 'draft'" />
+                    <div invisible="state == 'draft'" class="oe_clear">
+                        <table class="table table-sm table-hover o_list_table">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th>Saldo Devengado Antes</th>
+                                    <th>Saldo Devengado Después</th>
+                                    <th>Saldo Efectivo Antes</th>
+                                    <th>Saldo Efectivo Después</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <span>Origen: </span>
+                                        <field name="analytic_origin_id" readonly="1" nolabel="1" />
+                                    </td>
+                                    <td><field name="origin_saldo_dev_before" readonly="1" nolabel="1" /></td>
+                                    <td><field name="origin_saldo_dev_after" readonly="1" nolabel="1" /></td>
+                                    <td><field name="origin_saldo_efe_before" readonly="1" nolabel="1" /></td>
+                                    <td><field name="origin_saldo_efe_after" readonly="1" nolabel="1" /></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span>Destino: </span>
+                                        <field name="analytic_destination_id" readonly="1" nolabel="1" />
+                                    </td>
+                                    <td><field name="destination_saldo_dev_before" readonly="1" nolabel="1" /></td>
+                                    <td><field name="destination_saldo_dev_after" readonly="1" nolabel="1" /></td>
+                                    <td><field name="destination_saldo_efe_before" readonly="1" nolabel="1" /></td>
+                                    <td><field name="destination_saldo_efe_after" readonly="1" nolabel="1" /></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_analytic_reassignment_wizard" model="ir.actions.act_window">
+        <field name="name">Asistente Reasignación Analítica</field>
+        <field name="res_model">analytic.reassignment.wizard</field>
+        <field name="view_mode">form,tree</field>
+        <field name="view_id" ref="view_analytic_reassignment_wizard_form" />
+        <field name="target">current</field>
+    </record>
+
+    <menuitem
+        id="menu_analytic_decision_tools"
+        name="Herramientas Analíticas"
+        parent="account.menu_finance_reports"
+        sequence="95"
+    />
     <menuitem
         id="menu_analytic_decision_matrix_wizard"
         name="Matriz Decision Analitica"
-        parent="account.menu_finance_reports"
+        parent="menu_analytic_decision_tools"
         action="action_analytic_decision_matrix_wizard"
-        sequence="95"
+        sequence="10"
+    />
+    <menuitem
+        id="menu_analytic_reassignment_wizard"
+        name="Asistente Reasignación Analítica"
+        parent="menu_analytic_decision_tools"
+        action="action_analytic_reassignment_wizard"
+        sequence="20"
     />
 
 </odoo>

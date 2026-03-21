@@ -2,8 +2,10 @@
 
 Reporte operativo por proyectos (cuentas analiticas), independiente de MIS Builder.
 
-Incluye soporte para compensacion interproyectos (reasignaciones) usando el diario contable `REASIG-ANA`.
-Los reportes se guardan como registros reutilizables (versionables) para recalcular, imprimir y eliminar cuando ya no se necesiten.
+Incluye:
+- Matriz de decision analitica reutilizable (se guarda como registro).
+- Drill-down por documentos o por apuntes.
+- Asistente de reasignacion analitica para mover saldo entre proyectos con trazabilidad.
 
 ## Alcance del reporte
 
@@ -27,13 +29,13 @@ Formulas:
 ## Instalacion y acceso
 
 1. Instalar modulo `analytic_decision_matrix_report`.
-2. Ir a `Contabilidad > Reportes > Matriz Decision Analitica`.
+2. Ir a `Contabilidad > Reportes > Herramientas Analíticas`.
 
-Nota:
-- El menu aparece en Reportes de Contabilidad.
-- No crea menu como aplicacion independiente.
+Submenus:
+- `Matriz Decision Analitica`
+- `Asistente Reasignación Analítica`
 
-## Uso rapido
+## Uso rapido de la matriz
 
 1. Clic en `Nuevo` para crear una version del reporte.
 2. Definir filtros:
@@ -44,50 +46,77 @@ Nota:
 - `Cuentas Analiticas` (opcional, una o varias)
 - `Incluir reversados` (opcional, por defecto desactivado)
 - `Desglose por documentos` (opcional, por defecto activado)
-- `Codigo diario reasignacion` (por defecto `REASIG-ANA`)
+- `Codigo diario reasignacion` (por ejemplo `RASIG`)
 3. Clic en `Generar Matriz`.
 4. Opcional: clic en `Imprimir PDF`.
-5. Puedes volver a abrir el mismo registro luego para consultar o recalcular.
-6. En cada fila de proyecto, usar:
-- `Detalle` para todos los documentos del proyecto.
-- los valores de `Ingreso`, `CxC`, `Reasignacion (+)`, `Egresos`, `CxP` y `Reasignacion (-)` para detalle por columna.
 
-Comportamiento de fechas:
-- Si `Fecha Desde` esta vacia, toma toda la historia disponible hasta `Fecha Hasta`.
-- Si `Fecha Hasta` esta vacia, se usa la fecha actual.
+## Asistente de reasignacion
 
-Comportamiento de reversas:
-- Por defecto, el reporte excluye documentos reversados y documentos de reversa para evitar duplicidad/confusion en gestion.
-- Si se activa `Incluir reversados`, se incluyen ambos para fines de auditoria y trazabilidad.
+Flujo:
+1. Completar:
+- `Fecha contable`
+- `Diario de reasignacion`
+- `Cuenta puente`
+- `Proyecto origen`
+- `Proyecto destino`
+- `Monto`
+- `Motivo`
+- `Soporte/Referencia` (opcional)
+2. Clic en `Previsualizar`.
+3. Revisar `Previsualización de Impacto` en formato matriz:
+- Filas: `Origen: <proyecto>` y `Destino: <proyecto>`
+- Columnas: `Saldo Devengado Antes`, `Saldo Devengado Después`, `Saldo Efectivo Antes`, `Saldo Efectivo Después`
+4. Clic en `Confirmar y Contabilizar`.
 
-Comportamiento del drill-down:
-- Por defecto abre por documentos (`account.move`) en Ingreso/Egreso/Reasignacion.
-- Si se desactiva `Desglose por documentos`, abre detalle contable (`account.move.line`).
-- En modo documentos:
-- Si todo el conjunto corresponde a reportes de gastos, abre `hr.expense.sheet`.
-- Si hay mezcla (reportes de gastos y otros documentos, como facturas), abre `account.move`.
-- En drill-down de `Ctas x Cob`/`Ctas x Pag` se muestran:
-- `Documento` (clickeable), `Contacto`, `Fecha factura`, `Fecha vencimiento`, `Dias vencido`, `Residual Documento`, `% Participacion Analitica` y `Residual Proyecto`.
-- La fila `TOTAL GENERAL` del drill-down oculta columnas de detalle y presenta solo el resumen monetario total.
+Resultado:
+- Se crea y publica un asiento contable balanceado.
+- El registro queda en estado `Confirmado`.
+- El asiento queda vinculado en el campo `Asiento Generado`.
 
-## Criterio de calculo
+## Criterio de fecha y validacion de saldo
+
+Para el asistente, la validacion del saldo efectivo del proyecto origen se calcula con corte a la `Fecha contable` del movimiento, no a la fecha actual.
+
+Comportamiento actual:
+- Base de calculo: historico acumulado hasta `Fecha contable` (`date_to = self.date`).
+- No usa rango `Desde/Hasta` en el asistente (solo fecha de corte).
+
+Esto garantiza consistencia temporal entre:
+- fecha de validacion,
+- saldos previsualizados,
+- y fecha del asiento generado.
+
+## Criterios de calculo
 
 `Ingreso` y `Egresos`:
 - Se calculan desde apuntes contables posteados (`account_move_line`) con distribucion analitica.
 - `Ingreso` usa cuentas de tipo ingreso.
 - `Egresos` usa cuentas de tipo gasto.
+- En facturas, `Ingreso`/`Egresos` consideran documentos pagados o en `in_payment` para criterio de efectivo.
 
-## Reasignaciones interproyectos
+`Ctas x Cob` y `Ctas x Pag`:
+- Se calculan como residual abierto al corte (`Fecha Hasta`) en facturas posteadas.
+- Se distribuyen por ponderacion analitica de lineas de factura.
 
-- `Reasignacion (+)`: debitos en diario `REASIG-ANA`.
-- `Reasignacion (-)`: creditos en diario `REASIG-ANA`.
+Reasignaciones interproyectos:
+- `Reasignacion (+)`: debitos en el diario de reasignacion configurado.
+- `Reasignacion (-)`: creditos en el diario de reasignacion configurado.
 
-Esto permite mover saldo entre proyectos para compensacion sin mezclarlo con ingresos o egresos reales.
+## Drill-down
 
-## Cuentas por cobrar y cuentas por pagar (al corte)
+- Con `Desglose por documentos` activado:
+- Ingreso/Egreso/Reasignacion abre documentos (`account.move`) y, cuando aplica 100% a hojas de gasto, abre `hr.expense.sheet`.
+- CxC/CxP abre vista de residual analitico por documento.
 
-`Ctas x Cob` y `Ctas x Pag` se calculan como residual abierto al corte (`Fecha Hasta`) de facturas posteadas:
-- `Ctas x Cob`: facturas de cliente y notas de credito cliente pendientes de pago.
-- `Ctas x Pag`: facturas de proveedor y notas de credito proveedor pendientes de pago.
+- Con `Desglose por documentos` desactivado:
+- Abre detalle contable (`account.move.line`).
 
-El residual se distribuye a las cuentas analiticas segun la ponderacion analitica de las lineas de factura.
+## Reversas
+
+- Por defecto se excluyen documentos reversados y sus reversas para evitar duplicidad en gestion.
+- Si se activa `Incluir reversados`, se incluyen para fines de auditoria.
+
+## Guias del modulo
+
+- `docs/guia_reasignacion_analitica.md`
+- `docs/especificacion_mvp_asistente_reasignacion.md`

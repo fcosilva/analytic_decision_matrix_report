@@ -11,6 +11,7 @@
     "data": [
         "security/ir.model.access.csv",
         "data/analytic_decision_matrix_sequence.xml",
+        "data/analytic_reassignment_sequence.xml",
         "report/analytic_decision_matrix_report.xml",
         "views/analytic_decision_matrix_views.xml",
     ],
