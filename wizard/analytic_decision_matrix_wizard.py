@@ -604,6 +604,7 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
         date_to = wizard._effective_date_to()
         where_date_from = ""
         params = [str(self.analytic_account_id.id), wizard.company_id.id, str(self.analytic_account_id.id)]
+        extra_params = []
 
         if target_key == "ingreso":
             amount_expr = "(-aml.balance)"
@@ -626,17 +627,18 @@ class AnalyticDecisionMatrixWizardLine(models.Model):
         elif target_key == "reasignacion_in":
             amount_expr = "aml.debit"
             extra_where = "AND aj.code = %s AND aml.debit > 0"
-            params.append(wizard.reasignacion_journal_code)
+            extra_params.append(wizard.reasignacion_journal_code)
         elif target_key == "reasignacion_out":
             amount_expr = "aml.credit"
             extra_where = "AND aj.code = %s AND aml.credit > 0"
-            params.append(wizard.reasignacion_journal_code)
+            extra_params.append(wizard.reasignacion_journal_code)
         else:
             return []
 
         if wizard.date_from:
             where_date_from = "AND aml.date >= %s"
             params.append(wizard.date_from)
+        params.extend(extra_params)
         params.append(date_to)
         self.env.cr.execute(
             f"""
