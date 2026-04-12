@@ -198,7 +198,7 @@ class AnalyticDecisionMatrixWizard(models.Model):
         self.env.cr.execute(
             f"""
             SELECT
-                ad.key::int AS analytic_id,
+                analytic_key.account_id::int AS analytic_id,
                 SUM(
                     CASE
                         WHEN aa.account_type IN ('income', 'income_other')
@@ -240,6 +240,7 @@ class AnalyticDecisionMatrixWizard(models.Model):
             JOIN account_account aa ON aa.id = aml.account_id
             LEFT JOIN account_journal aj ON aj.id = aml.journal_id
             JOIN LATERAL jsonb_each_text(aml.analytic_distribution) ad ON TRUE
+            JOIN LATERAL regexp_split_to_table(ad.key, ',') AS analytic_key(account_id) ON TRUE
             WHERE am.state = 'posted'
               {self._sql_reversed_moves_clause('am')}
               AND aml.company_id = %s
@@ -247,7 +248,7 @@ class AnalyticDecisionMatrixWizard(models.Model):
               AND aml.date <= %s
               AND aml.analytic_distribution IS NOT NULL
               AND aml.analytic_distribution != '{{}}'::jsonb
-            GROUP BY ad.key::int
+            GROUP BY analytic_key.account_id::int
             """,
             tuple(params),
         )
@@ -338,13 +339,14 @@ class AnalyticDecisionMatrixWizard(models.Model):
             if not base:
                 continue
             for key, pct in (line.analytic_distribution or {}).items():
-                try:
-                    analytic_id = int(key)
-                except (TypeError, ValueError):
-                    continue
-                if selected_analytic_ids is not None and analytic_id not in selected_analytic_ids:
-                    continue
-                weights[analytic_id] += base * (float(pct) / 100.0)
+                for analytic_id_text in str(key).split(","):
+                    try:
+                        analytic_id = int(analytic_id_text)
+                    except (TypeError, ValueError):
+                        continue
+                    if selected_analytic_ids is not None and analytic_id not in selected_analytic_ids:
+                        continue
+                    weights[analytic_id] += base * (float(pct) / 100.0)
         return weights
 
     def _compute_amounts_by_analytic(self, analytic_ids):
